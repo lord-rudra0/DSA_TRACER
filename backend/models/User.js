@@ -40,6 +40,13 @@ const userSchema = new mongoose.Schema({
   location: String,
   website: String,
   
+  // Role-based access
+  role: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user'
+  },
+  
   // Progress tracking
   totalProblems: {
     type: Number,

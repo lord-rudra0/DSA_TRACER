@@ -42,3 +42,20 @@ export const optionalAuth = async (req, res, next) => {
     next();
   }
 };
+
+// Admin-only guard. Must be used after `auth`.
+export const requireAdmin = (req, res, next) => {
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Admin access required' });
+  }
+  return next();
+};
+
+// Principal admin only guard: only the ADMIN_EMAIL can pass
+export const requirePrincipalAdmin = (req, res, next) => {
+  const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase();
+  if (!req.user || !adminEmail || req.user.email?.toLowerCase() !== adminEmail) {
+    return res.status(403).json({ message: 'Principal admin access required' });
+  }
+  return next();
+};

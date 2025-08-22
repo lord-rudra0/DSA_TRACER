@@ -5,7 +5,7 @@ import axios from 'axios';
 import User from '../models/User.js';
 import Problem from '../models/Problem.js';
 import Submission from '../models/Submission.js';
-import { auth } from '../middleware/auth.js';
+import { auth, requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -32,13 +32,17 @@ router.post('/register', async (req, res) => {
     const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // Create user
+    // Create user with role (admin if email matches ADMIN_EMAIL)
+    const role = (process.env.ADMIN_EMAIL && email.toLowerCase() === process.env.ADMIN_EMAIL.toLowerCase())
+      ? 'admin'
+      : 'user';
     const user = new User({
       email,
       password: hashedPassword,
       firstName,
       lastName,
-      leetcodeUsername
+      leetcodeUsername,
+      role
     });
 
     await user.save();
@@ -59,7 +63,8 @@ router.post('/register', async (req, res) => {
         firstName: user.firstName,
         lastName: user.lastName,
         avatar: user.avatar,
-        leetcodeUsername: user.leetcodeUsername
+        leetcodeUsername: user.leetcodeUsername,
+        role: user.role
       }
     });
 
@@ -160,8 +165,12 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // Update last active
+    // Update last active and ensure only ADMIN_EMAIL can be admin
     user.lastActive = new Date();
+    const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase();
+    if (user.role === 'admin' && adminEmail && user.email?.toLowerCase() !== adminEmail) {
+      user.role = 'user';
+    }
     await user.save();
 
     // Generate JWT
@@ -183,7 +192,8 @@ router.post('/login', async (req, res) => {
         leetcodeUsername: user.leetcodeUsername,
         xp: user.xp,
         level: user.level,
-        currentStreak: user.currentStreak
+        currentStreak: user.currentStreak,
+        role: user.role
       }
     });
   } catch (error) {
@@ -225,7 +235,8 @@ router.get('/me', auth, async (req, res) => {
         focusAreas: user.focusAreas,
         friends: user.friends,
         settings: user.settings,
-        lastLeetCodeSync: user.lastLeetCodeSync
+        lastLeetCodeSync: user.lastLeetCodeSync,
+        role: user.role
       }
     });
   } catch (error) {
@@ -303,6 +314,39 @@ router.put('/password', auth, async (req, res) => {
   } catch (error) {
     console.error('Change password error:', error);
     res.status(500).json({ message: 'Server error changing password' });
+  }
+});
+
+// --- Admin utilities ---
+// 1) Protected admin ping to verify auth flow
+router.get('/admin/ping', auth, requireAdmin, (req, res) => {
+  res.json({ ok: true, message: 'Admin OK', userId: req.user._id });
+});
+
+// 2) One-time admin bootstrap: promote a user to admin using a setup token
+//    Header: X-Admin-Setup-Token: <ADMIN_SETUP_TOKEN>
+//    Body: { email }
+router.post('/admin/bootstrap', async (req, res) => {
+  try {
+    const setupToken = req.header('X-Admin-Setup-Token');
+    if (!process.env.ADMIN_SETUP_TOKEN || setupToken !== process.env.ADMIN_SETUP_TOKEN) {
+      return res.status(403).json({ message: 'Invalid setup token' });
+    }
+    const { email } = req.body || {};
+    if (!email) return res.status(400).json({ message: 'Email is required' });
+    const targetEmail = email.toLowerCase();
+    const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase();
+    if (!adminEmail || targetEmail !== adminEmail) {
+      return res.status(403).json({ message: 'Only ADMIN_EMAIL can be promoted' });
+    }
+    const user = await User.findOne({ email: targetEmail });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    user.role = 'admin';
+    await user.save();
+    return res.json({ message: 'User promoted to admin', userId: user._id });
+  } catch (e) {
+    console.error('Admin bootstrap error:', e);
+    return res.status(500).json({ message: 'Server error' });
   }
 });
 

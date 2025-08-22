@@ -5,6 +5,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Layout from './components/Layout/Layout';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
+import AdminRoute from './components/Auth/AdminRoute';
 
 // Pages
 import Home from './pages/Home';
@@ -23,6 +24,8 @@ import NotFound from './pages/NotFound';
 import CompetitionsList from './pages/Competitions/CompetitionsList';
 import CreateCompetition from './pages/Competitions/CreateCompetition';
 import CompetitionDetail from './pages/Competitions/CompetitionDetail';
+import Admin from './pages/Admin/Admin';
+import RequestAdmin from './pages/Admin/RequestAdmin';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -107,6 +110,16 @@ function App() {
                   <Route path="competitions/:id" element={
                     <ProtectedRoute>
                       <CompetitionDetail />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="admin" element={
+                    <AdminRoute>
+                      <Admin />
+                    </AdminRoute>
+                  } />
+                  <Route path="admin/request" element={
+                    <ProtectedRoute>
+                      <RequestAdmin />
                     </ProtectedRoute>
                   } />
                 </Route>
