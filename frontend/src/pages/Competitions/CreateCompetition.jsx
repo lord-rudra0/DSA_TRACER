@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 export default function CreateCompetition() {
   const navigate = useNavigate();
+  const { id } = useParams();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [problemSlugs, setProblemSlugs] = useState(''); // comma separated
@@ -13,6 +14,39 @@ export default function CreateCompetition() {
   const [scoring, setScoring] = useState({ easy: 1, medium: 2, hard: 3 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const isEdit = Boolean(id);
+
+  useEffect(() => {
+    if (!isEdit) return;
+    let mounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await axios.get(`/competitions/${id}`);
+        const comp = res.data?.competition;
+        if (!comp) return;
+        if (!mounted) return;
+        setName(comp.name || '');
+        setDescription(comp.description || '');
+        setProblemSlugs((comp.problems || []).join(', '));
+        // Convert ISO to datetime-local value
+        const fmt = (d) => new Date(d).toISOString().slice(0,16);
+        setStartAt(comp.startAt ? fmt(comp.startAt) : '');
+        setEndAt(comp.endAt ? fmt(comp.endAt) : '');
+        setVisibility(comp.visibility || 'public');
+        setScoring({
+          easy: comp.scoring?.easy ?? 1,
+          medium: comp.scoring?.medium ?? 2,
+          hard: comp.scoring?.hard ?? 3,
+        });
+      } catch (e) {
+        setError(e.response?.data?.message || 'Failed to load competition');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [id, isEdit]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,9 +55,15 @@ export default function CreateCompetition() {
     try {
       const problems = problemSlugs.split(',').map(s => s.trim()).filter(Boolean);
       const payload = { name, description, problems, startAt: new Date(startAt).toISOString(), endAt: new Date(endAt).toISOString(), visibility, scoring };
-      const res = await axios.post('/competitions', payload);
-      const id = res.data?.competition?._id;
-      if (id) navigate(`/competitions/${id}`);
+      if (isEdit) {
+        const res = await axios.put(`/competitions/${id}`, payload);
+        const newId = res.data?.competition?._id || id;
+        navigate(`/competitions/${newId}`);
+      } else {
+        const res = await axios.post('/competitions', payload);
+        const newId = res.data?.competition?._id;
+        if (newId) navigate(`/competitions/${newId}`);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create competition');
     } finally {
@@ -33,7 +73,7 @@ export default function CreateCompetition() {
 
   return (
     <div className="p-6 max-w-2xl">
-      <h1 className="text-2xl font-semibold mb-4">Create Competition</h1>
+      <h1 className="text-2xl font-semibold mb-4">{isEdit ? 'Edit Competition' : 'Create Competition'}</h1>
       {error && <div className="mb-3 text-error-600">{error}</div>}
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div>
@@ -76,8 +116,11 @@ export default function CreateCompetition() {
             </div>
           </div>
         </div>
-        <div className="pt-2">
-          <button className="btn btn-primary" disabled={loading}>{loading ? 'Creating…' : 'Create'}</button>
+        <div className="pt-2 flex items-center gap-2">
+          <button className="btn btn-primary" disabled={loading}>{loading ? (isEdit ? 'Saving…' : 'Creating…') : (isEdit ? 'Save Changes' : 'Create')}</button>
+          {isEdit && (
+            <button type="button" className="btn" onClick={() => navigate(-1)}>Cancel</button>
+          )}
         </div>
       </form>
     </div>

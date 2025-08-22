@@ -102,9 +102,14 @@ function App() {
                     </ProtectedRoute>
                   } />
                   <Route path="competitions/create" element={
-                    <ProtectedRoute>
+                    <AdminRoute>
                       <CreateCompetition />
-                    </ProtectedRoute>
+                    </AdminRoute>
+                  } />
+                  <Route path="competitions/:id/edit" element={
+                    <AdminRoute>
+                      <CreateCompetition />
+                    </AdminRoute>
                   } />
                   <Route path="competitions/:id" element={
                     <ProtectedRoute>

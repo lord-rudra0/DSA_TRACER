@@ -2,11 +2,14 @@ import React from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import axios from 'axios';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function CompetitionDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   const { data, isLoading, isError } = useQuery(['competition', id], async () => {
     const res = await axios.get(`/competitions/${id}`);
@@ -50,6 +53,9 @@ export default function CompetitionDetail() {
           <div className="text-xs text-gray-400 mt-1">Problems: {comp.problems?.length || 0}</div>
         </div>
         <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Link className="btn" to={`/competitions/${id}/edit`}>Edit</Link>
+          )}
           {!isParticipant && (
             <button className="btn btn-primary" onClick={() => joinMutation.mutate()} disabled={joinMutation.isLoading}>
               {joinMutation.isLoading ? 'Joining…' : 'Join'}

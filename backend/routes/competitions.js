@@ -4,7 +4,7 @@ import Competition from '../models/Competition.js';
 import Submission from '../models/Submission.js';
 import Problem from '../models/Problem.js';
 import User from '../models/User.js';
-import { auth } from '../middleware/auth.js';
+import { auth, requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -16,8 +16,8 @@ function computeStatus(startAt, endAt) {
   return 'ongoing';
 }
 
-// Create a competition
-router.post('/', auth, async (req, res) => {
+// Create a competition (admin only)
+router.post('/', requireAdmin, async (req, res) => {
   try {
     const { name, description = '', problems = [], startAt, endAt, visibility = 'public', scoring } = req.body || {};
     if (!name || !Array.isArray(problems) || problems.length === 0 || !startAt || !endAt) {
@@ -49,6 +49,42 @@ router.post('/', auth, async (req, res) => {
   } catch (err) {
     console.error('Create competition error:', err);
     res.status(500).json({ message: 'Server error creating competition' });
+  }
+});
+
+// Update a competition (admin only)
+router.put('/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) return res.status(400).json({ message: 'Invalid id' });
+
+    const { name, description, problems, startAt, endAt, visibility, scoring } = req.body || {};
+
+    const comp = await Competition.findById(id);
+    if (!comp) return res.status(404).json({ message: 'Competition not found' });
+
+    if (name !== undefined) comp.name = name;
+    if (description !== undefined) comp.description = description;
+    if (Array.isArray(problems)) comp.problems = problems.map(String);
+    if (startAt) comp.startAt = new Date(startAt);
+    if (endAt) comp.endAt = new Date(endAt);
+    if (visibility) comp.visibility = visibility;
+    if (scoring) {
+      comp.scoring = {
+        easy: scoring?.easy ?? comp.scoring?.easy ?? 1,
+        medium: scoring?.medium ?? comp.scoring?.medium ?? 2,
+        hard: scoring?.hard ?? comp.scoring?.hard ?? 3,
+      };
+    }
+
+    if (!(comp.startAt < comp.endAt)) return res.status(400).json({ message: 'startAt must be before endAt' });
+    comp.status = computeStatus(comp.startAt, comp.endAt);
+
+    await comp.save();
+    res.json({ competition: comp, message: 'Competition updated' });
+  } catch (err) {
+    console.error('Update competition error:', err);
+    res.status(500).json({ message: 'Server error updating competition' });
   }
 });
 
