@@ -61,6 +61,87 @@ router.get('/history/:username', optionalAuth, async (req, res) => {
   }
 });
 
+// Get user contest ranking info summary (specific route placed before generic id routes)
+router.get('/userContestRankingInfo/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const response = await axios.get(`${process.env.LEETCODE_API_BASE}/userContestRankingInfo/${encodeURIComponent(username)}`);
+    const data = response.data;
+    if (!data || data.errors) {
+      return res.status(404).json({ message: 'Ranking info not found' });
+    }
+    res.json({ rankingInfo: data, lastUpdated: new Date() });
+  } catch (error) {
+    console.error('Get userContestRankingInfo error:', error);
+    if (error.response?.status === 404) return res.status(404).json({ message: 'User not found' });
+    res.status(500).json({ message: 'Server error fetching ranking info' });
+  }
+});
+
+// Alias path: '/:username/contest/history' -> same as '/history/:username'
+router.get('/:username/contest/history', optionalAuth, async (req, res) => {
+  try {
+    const { username } = req.params;
+    const response = await axios.get(`${process.env.LEETCODE_API_BASE}/contest/history/${encodeURIComponent(username)}`);
+    const contestHistory = response.data;
+    if (!contestHistory || contestHistory.errors) {
+      return res.status(404).json({ message: 'Contest history not found' });
+    }
+
+    const user = await User.findOne({ leetcodeUsername: username });
+    if (user && req.user && user._id.toString() !== req.user._id.toString()) {
+      if (!user.settings.privacy.showStats) {
+        return res.status(403).json({ message: 'Contest history is private' });
+      }
+    }
+
+    res.json({
+      contestHistory: contestHistory.contestHistory || [],
+      totalContests: contestHistory.totalContests || 0,
+      rating: contestHistory.rating || 0,
+      ranking: contestHistory.ranking || 0,
+      lastUpdated: new Date()
+    });
+  } catch (error) {
+    console.error('Alias get contest history error:', error);
+    if (error.response?.status === 404) return res.status(404).json({ message: 'User not found or no contest history' });
+    res.status(500).json({ message: 'Server error fetching contest history' });
+  }
+});
+
+// Combined overview: '/:username/contest' -> ranking info + recent history
+router.get('/:username/contest', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const [rankingRes, historyRes] = await Promise.allSettled([
+      axios.get(`${process.env.LEETCODE_API_BASE}/userContestRankingInfo/${encodeURIComponent(username)}`),
+      axios.get(`${process.env.LEETCODE_API_BASE}/contest/history/${encodeURIComponent(username)}`)
+    ]);
+
+    const rankingInfo = rankingRes.status === 'fulfilled' ? rankingRes.value.data : null;
+    const history = historyRes.status === 'fulfilled' ? historyRes.value.data : null;
+
+    if (!rankingInfo && (!history || !history.contestHistory)) {
+      return res.status(404).json({ message: 'No contest data found for user' });
+    }
+
+    res.json({
+      username,
+      rankingInfo: rankingInfo || {},
+      recentHistory: (history?.contestHistory || []).slice(0, 10),
+      totals: {
+        totalContests: history?.totalContests || 0,
+        rating: history?.rating || rankingInfo?.rating || 0,
+        ranking: history?.ranking || rankingInfo?.ranking || 0
+      },
+      lastUpdated: new Date()
+    });
+  } catch (error) {
+    console.error('Get user contest overview error:', error);
+    res.status(500).json({ message: 'Server error fetching user contest overview' });
+  }
+});
+
 // Get contest ranking
 router.get('/:contestId/ranking', async (req, res) => {
   try {
@@ -134,6 +215,44 @@ router.get('/stats/global', async (req, res) => {
   } catch (error) {
     console.error('Get contest stats error:', error);
     res.status(500).json({ message: 'Server error fetching contest statistics' });
+  }
+});
+
+// Optional: Trending discussion topics
+router.get('/trendingDiscuss', async (req, res) => {
+  try {
+    const first = req.query.first || 20;
+    const response = await axios.get(`${process.env.LEETCODE_API_BASE}/trendingDiscuss?first=${encodeURIComponent(first)}`);
+    res.json({ topics: response.data?.trendingDiscussionTopics || response.data || [], lastUpdated: new Date() });
+  } catch (error) {
+    console.error('Get trending discuss error:', error);
+    res.status(500).json({ message: 'Server error fetching trending discussions' });
+  }
+});
+
+// Optional: Discuss topic details
+router.get('/discussTopic/:topicId', async (req, res) => {
+  try {
+    const { topicId } = req.params;
+    const response = await axios.get(`${process.env.LEETCODE_API_BASE}/discussTopic/${topicId}`);
+    if (!response.data) return res.status(404).json({ message: 'Topic not found' });
+    res.json({ topic: response.data, lastUpdated: new Date() });
+  } catch (error) {
+    console.error('Get discuss topic error:', error);
+    if (error.response?.status === 404) return res.status(404).json({ message: 'Topic not found' });
+    res.status(500).json({ message: 'Server error fetching discuss topic' });
+  }
+});
+
+// Optional: Discuss comments
+router.get('/discussComments/:topicId', async (req, res) => {
+  try {
+    const { topicId } = req.params;
+    const response = await axios.get(`${process.env.LEETCODE_API_BASE}/discussComments/${topicId}`);
+    res.json({ comments: response.data?.comments || response.data || [], lastUpdated: new Date() });
+  } catch (error) {
+    console.error('Get discuss comments error:', error);
+    res.status(500).json({ message: 'Server error fetching discuss comments' });
   }
 });
 
