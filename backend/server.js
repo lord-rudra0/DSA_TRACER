@@ -72,4 +72,9 @@ app.use('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🔗 API available at http://localhost:${PORT}/api`);
+  if (process.env.LEETCODE_API_BASE) {
+    console.log(`🌐 LEETCODE_API_BASE set to: ${process.env.LEETCODE_API_BASE}`);
+  } else {
+    console.warn('⚠️  LEETCODE_API_BASE is NOT set. External LeetCode proxy will be disabled.');
+  }
 });

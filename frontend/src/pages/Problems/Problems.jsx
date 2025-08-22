@@ -40,7 +40,7 @@ export default function Problems() {
     ['problems', queryParams],
     async () => {
       const res = await axios.get(`/problems?${queryParams}`);
-      return res.data; // { items, page, totalPages, total, hasNextPage }
+      return res.data; // { problems, pagination: { current, total, hasNext, hasPrev }, total }
     },
     { keepPreviousData: true, staleTime: 60 * 1000 }
   );
@@ -52,8 +52,9 @@ export default function Problems() {
     { staleTime: 10 * 60 * 1000 }
   );
 
-  const items = data?.items || [];
-  const totalPages = data?.totalPages || 1;
+  const items = data?.problems || [];
+  const totalPages = data?.pagination?.total || 1;
+  const totalCount = data?.total || items.length || 0;
 
   const toggleTag = (tag) => {
     setPage(1);
@@ -165,7 +166,7 @@ export default function Problems() {
               </button>
             </div>
             <div className="mt-2 flex flex-wrap gap-2 max-h-56 overflow-auto pr-1">
-              {(tagsData?.tags || []).map((t) => (
+              {(tagsData || []).map((t) => (
                 <button
                   key={t.name}
                   onClick={() => { setPage(1); toggleTag(t.name); }}
@@ -188,7 +189,7 @@ export default function Problems() {
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600 dark:text-gray-400">
               Showing <span className="font-medium">{items.length}</span> of{' '}
-              <span className="font-medium">{data?.total || 0}</span> problems
+              <span className="font-medium">{totalCount}</span> problems
             </div>
             <div className="flex items-center gap-2">
               <label className="text-sm text-gray-600 dark:text-gray-400">Sort:</label>

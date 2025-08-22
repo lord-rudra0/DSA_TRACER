@@ -18,6 +18,94 @@ router.get('/', optionalAuth, async (req, res) => {
       status // solved, unsolved, attempted
     } = req.query;
 
+    // If external API base is configured, prefer proxying external list (no local DB dependency)
+    if (process.env.LEETCODE_API_BASE) {
+      try {
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const extParams = new URLSearchParams();
+        extParams.set('limit', parseInt(limit));
+        extParams.set('skip', skip);
+        if (difficulty) {
+          const map = { Easy: 'EASY', Medium: 'MEDIUM', Hard: 'HARD' };
+          extParams.set('difficulty', map[difficulty] || String(difficulty).toUpperCase());
+        }
+        if (tags) {
+          const tagStr = tags.split(',').map(t => t.trim()).filter(Boolean).join('+');
+          if (tagStr) extParams.set('tags', tagStr);
+        }
+
+        const url = `${process.env.LEETCODE_API_BASE}/problems?${extParams.toString()}`;
+        console.log('[Problems] Proxying to:', url);
+        const extRes = await axios.get(url);
+        // Alfa API may return one of several shapes. Normalize here:
+        // - { problems: [...] }
+        // - { problemsetQuestionList: [...] }
+        // - [ ... ]
+        let extItems = [];
+        if (Array.isArray(extRes.data?.problems)) {
+          extItems = extRes.data.problems;
+        } else if (Array.isArray(extRes.data?.problemsetQuestionList)) {
+          extItems = extRes.data.problemsetQuestionList;
+        } else if (Array.isArray(extRes.data)) {
+          extItems = extRes.data;
+        }
+
+        const mapped = extItems.map((q) => {
+          const topicTags = q.topicTags || q.tags || [];
+          const tagsArr = Array.isArray(topicTags)
+            ? topicTags.map(t => (typeof t === 'string' ? t : (t?.name || t?.slug || '') )).filter(Boolean)
+            : [];
+          const diff = (q.difficulty || '').toString().toUpperCase();
+          const diffPretty = diff === 'EASY' ? 'Easy' : diff === 'MEDIUM' ? 'Medium' : diff === 'HARD' ? 'Hard' : (q.difficulty || '');
+          return {
+            title: q.title || q.questionTitle || q.titleSlug || 'Untitled',
+            titleSlug: q.titleSlug || q.slug || q.questionSlug,
+            difficulty: diffPretty,
+            tags: tagsArr,
+            acRate: q.acRate ?? q.acceptanceRate ?? null,
+            totalSubmissions: q.totalSubmissions ?? null,
+            totalAccepted: q.totalAccepted ?? null,
+            isPremium: q.isPaidOnly ?? q.paidOnly ?? false,
+          };
+        }).filter(p => p.titleSlug);
+
+        // Apply text search locally if provided
+        let results = mapped;
+        if (search) {
+          const s = search.toLowerCase();
+          results = mapped.filter(p =>
+            p.title?.toLowerCase().includes(s) ||
+            p.titleSlug?.toLowerCase().includes(s) ||
+            p.tags?.some(t => t.toLowerCase().includes(s))
+          );
+        }
+
+        // Add user-specific solved filter if requested and user is authenticated
+        if (req.user && status) {
+          const acceptedIds = await Submission.find({ user: req.user._id, status: 'Accepted' })
+            .populate('problem', 'titleSlug')
+            .then(rows => new Set(rows.map(r => r.problem?.titleSlug).filter(Boolean)));
+          if (status === 'solved') results = results.filter(p => acceptedIds.has(p.titleSlug));
+          if (status === 'unsolved') results = results.filter(p => !acceptedIds.has(p.titleSlug));
+        }
+
+        const hasNext = results.length === parseInt(limit);
+        return res.json({
+          problems: results,
+          pagination: {
+            current: parseInt(page),
+            total: hasNext ? parseInt(page) + 1 : parseInt(page),
+            hasNext,
+            hasPrev: parseInt(page) > 1
+          },
+          total: (parseInt(page) - 1) * parseInt(limit) + results.length + (hasNext ? parseInt(limit) : 0)
+        });
+      } catch (e) {
+        console.error('External problems proxy error:', e?.message || e);
+        // falls back to local DB path below
+      }
+    }
+
     let query = {};
     
     // Apply filters
@@ -68,10 +156,83 @@ router.get('/', optionalAuth, async (req, res) => {
       }
     }
 
-    const total = await Problem.countDocuments(query);
-    const totalPages = Math.ceil(total / parseInt(limit));
+    let total = await Problem.countDocuments(query);
+    let totalPages = Math.ceil(total / parseInt(limit));
 
-    res.json({
+    // External API fallback if no local results
+    if (total === 0) {
+      try {
+        const base = process.env.LEETCODE_API_BASE;
+        if (!base) throw new Error('LEETCODE_API_BASE not configured');
+
+        // Build external query
+        const extParams = new URLSearchParams();
+        extParams.set('limit', parseInt(limit));
+        extParams.set('skip', skip);
+        // External difficulty expects uppercase EASY|MEDIUM|HARD
+        if (difficulty) {
+          const map = { Easy: 'EASY', Medium: 'MEDIUM', Hard: 'HARD' };
+          extParams.set('difficulty', map[difficulty] || String(difficulty).toUpperCase());
+        }
+        if (tags) {
+          // Our UI sends comma-separated; external expects plus-separated
+          const tagStr = tags.split(',').map(t => t.trim()).filter(Boolean).join('+');
+          if (tagStr) extParams.set('tags', tagStr);
+        }
+        // External API doesn't support free-text search reliably; we will filter client-side after fetch
+
+        const url = `${base}/problems?${extParams.toString()}`;
+        const extRes = await axios.get(url);
+        const extItems = Array.isArray(extRes.data?.problems) ? extRes.data.problems : (Array.isArray(extRes.data) ? extRes.data : []);
+
+        const mapped = extItems.map((q) => {
+          // Defensive mapping across possible shapes
+          const topicTags = q.topicTags || q.tags || [];
+          const tagsArr = Array.isArray(topicTags)
+            ? topicTags.map(t => (typeof t === 'string' ? t : (t?.name || t?.slug || '') )).filter(Boolean)
+            : [];
+          const diff = (q.difficulty || '').toString().toUpperCase();
+          const diffPretty = diff === 'EASY' ? 'Easy' : diff === 'MEDIUM' ? 'Medium' : diff === 'HARD' ? 'Hard' : (q.difficulty || '');
+          return {
+            title: q.title || q.questionTitle || q.titleSlug || 'Untitled',
+            titleSlug: q.titleSlug || q.slug || q.questionSlug,
+            difficulty: diffPretty,
+            tags: tagsArr,
+            acRate: q.acRate ?? q.acceptanceRate ?? null,
+            totalSubmissions: q.totalSubmissions ?? null,
+            totalAccepted: q.totalAccepted ?? null,
+            isPremium: q.isPaidOnly ?? q.paidOnly ?? false,
+          };
+        }).filter(p => p.titleSlug);
+
+        // Apply text search locally if provided
+        const filtered = search
+          ? mapped.filter(p =>
+              p.title?.toLowerCase().includes(search.toLowerCase()) ||
+              p.titleSlug?.toLowerCase().includes(search.toLowerCase()) ||
+              p.tags?.some(t => t.toLowerCase().includes(search.toLowerCase()))
+            )
+          : mapped;
+
+        const hasNext = filtered.length === parseInt(limit);
+      
+        return res.json({
+          problems: filtered,
+          pagination: {
+            current: parseInt(page),
+            total: hasNext ? parseInt(page) + 1 : parseInt(page), // best-effort when total unknown
+            hasNext,
+            hasPrev: parseInt(page) > 1,
+          },
+          total: skip + filtered.length + (hasNext ? parseInt(limit) : 0), // approximate total
+        });
+      } catch (extErr) {
+        console.error('External problems fallback error:', extErr?.message || extErr);
+        // Continue to return empty local result
+      }
+    }
+
+    return res.json({
       problems,
       pagination: {
         current: parseInt(page),
