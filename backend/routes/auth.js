@@ -242,19 +242,33 @@ router.get('/me', auth, async (req, res) => {
 // Update user profile
 router.put('/profile', auth, async (req, res) => {
   try {
-    const updates = req.body;
+    const updates = req.body || {};
     const allowedUpdates = [
-      'firstName', 'lastName', 'bio', 'location', 'website', 
-      'leetcodeUsername', 'preferredLanguages', 'focusAreas', 'avatar'
+      'firstName', 'lastName', 'bio', 'location', 'website',
+      'preferredLanguages', 'focusAreas', 'avatar', 'username', 'email'
     ];
-    
-    // Filter allowed updates
+
+    // Filter allowed updates (leetcodeUsername is intentionally excluded here)
     const filteredUpdates = {};
     Object.keys(updates).forEach(key => {
       if (allowedUpdates.includes(key)) {
         filteredUpdates[key] = updates[key];
       }
     });
+
+    // Uniqueness checks for username and email if they are being updated
+    if (filteredUpdates.username) {
+      const exists = await User.findOne({ username: filteredUpdates.username, _id: { $ne: req.user._id } });
+      if (exists) {
+        return res.status(400).json({ message: 'Username already exists' });
+      }
+    }
+    if (filteredUpdates.email) {
+      const exists = await User.findOne({ email: filteredUpdates.email, _id: { $ne: req.user._id } });
+      if (exists) {
+        return res.status(400).json({ message: 'Email already exists' });
+      }
+    }
 
     const user = await User.findByIdAndUpdate(
       req.user._id,
