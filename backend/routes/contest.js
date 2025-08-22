@@ -22,12 +22,12 @@ router.get('/', async (req, res) => {
 });
 
 // Get user contest history
-router.get('/history/:username', optionalAuth, async (req, res) => {
+router.get('/history/:leetcodeUsername', optionalAuth, async (req, res) => {
   try {
-    const { username } = req.params;
+    const { leetcodeUsername } = req.params;
     
     // Get contest history from LeetCode API
-    const response = await axios.get(`${process.env.LEETCODE_API_BASE}/contest/history/${username}`);
+    const response = await axios.get(`${process.env.LEETCODE_API_BASE}/contest/history/${leetcodeUsername}`);
     const contestHistory = response.data;
 
     if (!contestHistory || contestHistory.errors) {
@@ -35,7 +35,7 @@ router.get('/history/:username', optionalAuth, async (req, res) => {
     }
 
     // Get user from database to check if it's the current user or privacy settings
-    const user = await User.findOne({ leetcodeUsername: username });
+    const user = await User.findOne({ leetcodeUsername });
     
     // Check privacy if not the current user
     if (user && req.user && user._id.toString() !== req.user._id.toString()) {
@@ -62,10 +62,10 @@ router.get('/history/:username', optionalAuth, async (req, res) => {
 });
 
 // Get user contest ranking info summary (specific route placed before generic id routes)
-router.get('/userContestRankingInfo/:username', async (req, res) => {
+router.get('/userContestRankingInfo/:leetcodeUsername', async (req, res) => {
   try {
-    const { username } = req.params;
-    const response = await axios.get(`${process.env.LEETCODE_API_BASE}/userContestRankingInfo/${encodeURIComponent(username)}`);
+    const { leetcodeUsername } = req.params;
+    const response = await axios.get(`${process.env.LEETCODE_API_BASE}/userContestRankingInfo/${encodeURIComponent(leetcodeUsername)}`);
     const data = response.data;
     if (!data || data.errors) {
       return res.status(404).json({ message: 'Ranking info not found' });
@@ -78,17 +78,17 @@ router.get('/userContestRankingInfo/:username', async (req, res) => {
   }
 });
 
-// Alias path: '/:username/contest/history' -> same as '/history/:username'
-router.get('/:username/contest/history', optionalAuth, async (req, res) => {
+// Alias path: '/:leetcodeUsername/contest/history' -> same as '/history/:leetcodeUsername'
+router.get('/:leetcodeUsername/contest/history', optionalAuth, async (req, res) => {
   try {
-    const { username } = req.params;
-    const response = await axios.get(`${process.env.LEETCODE_API_BASE}/contest/history/${encodeURIComponent(username)}`);
+    const { leetcodeUsername } = req.params;
+    const response = await axios.get(`${process.env.LEETCODE_API_BASE}/contest/history/${encodeURIComponent(leetcodeUsername)}`);
     const contestHistory = response.data;
     if (!contestHistory || contestHistory.errors) {
       return res.status(404).json({ message: 'Contest history not found' });
     }
 
-    const user = await User.findOne({ leetcodeUsername: username });
+    const user = await User.findOne({ leetcodeUsername });
     if (user && req.user && user._id.toString() !== req.user._id.toString()) {
       if (!user.settings.privacy.showStats) {
         return res.status(403).json({ message: 'Contest history is private' });
@@ -109,13 +109,13 @@ router.get('/:username/contest/history', optionalAuth, async (req, res) => {
   }
 });
 
-// Combined overview: '/:username/contest' -> ranking info + recent history
-router.get('/:username/contest', async (req, res) => {
+// Combined overview: '/:leetcodeUsername/contest' -> ranking info + recent history
+router.get('/:leetcodeUsername/contest', async (req, res) => {
   try {
-    const { username } = req.params;
+    const { leetcodeUsername } = req.params;
     const [rankingRes, historyRes] = await Promise.allSettled([
-      axios.get(`${process.env.LEETCODE_API_BASE}/userContestRankingInfo/${encodeURIComponent(username)}`),
-      axios.get(`${process.env.LEETCODE_API_BASE}/contest/history/${encodeURIComponent(username)}`)
+      axios.get(`${process.env.LEETCODE_API_BASE}/userContestRankingInfo/${encodeURIComponent(leetcodeUsername)}`),
+      axios.get(`${process.env.LEETCODE_API_BASE}/contest/history/${encodeURIComponent(leetcodeUsername)}`)
     ]);
 
     const rankingInfo = rankingRes.status === 'fulfilled' ? rankingRes.value.data : null;
@@ -126,7 +126,7 @@ router.get('/:username/contest', async (req, res) => {
     }
 
     res.json({
-      username,
+      leetcodeUsername,
       rankingInfo: rankingInfo || {},
       recentHistory: (history?.contestHistory || []).slice(0, 10),
       totals: {
@@ -191,12 +191,12 @@ router.get('/stats/global', async (req, res) => {
     ]);
 
     const topRated = await User.find({ contestRating: { $gt: 0 } })
-      .select('username avatar contestRating contestsAttended')
+      .select('leetcodeUsername avatar contestRating contestsAttended')
       .sort({ contestRating: -1 })
       .limit(10);
 
     const mostActive = await User.find({ contestsAttended: { $gt: 0 } })
-      .select('username avatar contestsAttended contestRating')
+      .select('leetcodeUsername avatar contestsAttended contestRating')
       .sort({ contestsAttended: -1 })
       .limit(10);
 
