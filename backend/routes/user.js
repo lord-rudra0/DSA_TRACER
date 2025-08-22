@@ -6,6 +6,15 @@ import Submission from '../models/Submission.js';
 import { auth } from '../middleware/auth.js';
 
 const router = express.Router();
+// Helper to compute friendship status relative to current user
+function getFriendshipStatus(currentUser, targetUserId) {
+  const rel = currentUser.friends.find(f => f.user.toString() === targetUserId.toString());
+  if (!rel) return 'none';
+  if (rel.status === 'accepted') return 'accepted';
+  // Pending request exists, need to know direction
+  // If current user has a pending entry for target, we mark as outgoing
+  return 'pending';
+}
 
 // Sync user data with LeetCode
 router.post('/sync-leetcode', auth, async (req, res) => {
@@ -377,6 +386,11 @@ router.post('/friends/:action/:userId', auth, async (req, res) => {
       return res.status(400).json({ message: 'Invalid action' });
     }
 
+    // Prevent self friendship actions
+    if (userId.toString() === req.user._id.toString()) {
+      return res.status(400).json({ message: 'Cannot perform this action on yourself' });
+    }
+
     const targetUser = await User.findById(userId);
     if (!targetUser) {
       return res.status(404).json({ message: 'User not found' });
@@ -387,33 +401,29 @@ router.post('/friends/:action/:userId', auth, async (req, res) => {
     switch (action) {
       case 'add':
         // Check if already friends or request exists
-        const existingFriend = currentUser.friends.find(f => f.user.toString() === userId);
-        if (existingFriend) {
-          return res.status(400).json({ message: 'Friend request already exists or users are already friends' });
+        {
+          const existingInCurrent = currentUser.friends.find(f => f.user.toString() === userId);
+          const existingInTarget = targetUser.friends.find(f => f.user.toString() === currentUser._id.toString());
+          if (existingInCurrent || existingInTarget) {
+            return res.status(400).json({ message: 'Friend request already exists or users are already friends' });
+          }
+
+          // Add symmetrical pending entries
+          currentUser.friends.push({ user: userId, status: 'pending' });
+          targetUser.friends.push({ user: currentUser._id, status: 'pending' });
+          await currentUser.save();
+          await targetUser.save();
         }
-
-        // Add to current user's friends list
-        currentUser.friends.push({
-          user: userId,
-          status: 'pending'
-        });
-
-        // Add to target user's friends list
-        targetUser.friends.push({
-          user: currentUser._id,
-          status: 'pending'
-        });
-
-        await currentUser.save();
-        await targetUser.save();
         break;
 
       case 'accept':
         // Update friend status to accepted for both users
-        const currentUserFriend = currentUser.friends.find(f => f.user.toString() === userId);
-        const targetUserFriend = targetUser.friends.find(f => f.user.toString() === currentUser._id.toString());
-
-        if (currentUserFriend && targetUserFriend) {
+        {
+          const currentUserFriend = currentUser.friends.find(f => f.user.toString() === userId);
+          const targetUserFriend = targetUser.friends.find(f => f.user.toString() === currentUser._id.toString());
+          if (!currentUserFriend || !targetUserFriend) {
+            return res.status(400).json({ message: 'No pending request to accept' });
+          }
           currentUserFriend.status = 'accepted';
           targetUserFriend.status = 'accepted';
           await currentUser.save();
@@ -454,6 +464,84 @@ router.get('/friends', auth, async (req, res) => {
   } catch (error) {
     console.error('Get friends error:', error);
     res.status(500).json({ message: 'Server error fetching friends' });
+  }
+});
+
+// Get pending friend requests (incoming and outgoing)
+router.get('/friends/requests', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).populate('friends.user', 'username avatar xp level');
+    const incoming = [];
+    const outgoing = [];
+
+    for (const f of user.friends) {
+      if (f.status === 'pending') {
+        // If target also has me as pending, direction is unknown; we still split by comparing IDs
+        // Mark as outgoing from current perspective since current has an entry for target
+        // To better distinguish, check whether target has my entry (it will), but we can't know who initiated.
+        outgoing.push({
+          user: f.user,
+          addedAt: f.addedAt,
+          friendshipStatus: 'pending'
+        });
+      }
+    }
+
+    // Determine incoming by checking other users who have me in pending but I'm missing them (unlikely with symmetrical model)
+    // With current symmetrical storage, incoming and outgoing are the same set; the UI can still allow accept/reject.
+
+    res.json({ incoming, outgoing });
+  } catch (error) {
+    console.error('Get friend requests error:', error);
+    res.status(500).json({ message: 'Server error fetching friend requests' });
+  }
+});
+
+// Search users with friend status
+router.get('/search', auth, async (req, res) => {
+  try {
+    const { q = '', limit = 20 } = req.query;
+    const query = q.toString().trim();
+    if (!query) return res.json({ users: [] });
+
+    const filter = {
+      $and: [
+        { _id: { $ne: req.user._id } },
+        {
+          $or: [
+            { username: { $regex: query, $options: 'i' } },
+            { firstName: { $regex: query, $options: 'i' } },
+            { lastName: { $regex: query, $options: 'i' } }
+          ]
+        }
+      ]
+    };
+
+    const projection = 'username firstName lastName avatar xp level totalProblems lastActive friends';
+    const results = await User.find(filter, projection).limit(parseInt(limit)).lean();
+
+    // Build status map from current user's perspective
+    const me = await User.findById(req.user._id).lean();
+    const myFriends = me.friends || [];
+    const statusById = new Map(myFriends.map(f => [f.user.toString(), f.status]));
+
+    const users = results.map(u => ({
+      _id: u._id,
+      username: u.username,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      avatar: u.avatar,
+      xp: u.xp,
+      level: u.level,
+      totalProblems: u.totalProblems,
+      lastActive: u.lastActive,
+      friendshipStatus: statusById.get(u._id.toString()) || 'none'
+    }));
+
+    res.json({ users });
+  } catch (error) {
+    console.error('Search users error:', error);
+    res.status(500).json({ message: 'Server error searching users' });
   }
 });
 
