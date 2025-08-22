@@ -12,6 +12,12 @@ export default function Profile() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
+  // Admin request state (self only)
+  const [myRequests, setMyRequests] = useState([]);
+  const [reqLoading, setReqLoading] = useState(false);
+  const [reqError, setReqError] = useState('');
+  const [reqSubmitting, setReqSubmitting] = useState(false);
+  const [reqMsg, setReqMsg] = useState('');
 
   const isSelf = useMemo(() => !leetcodeUsername || leetcodeUsername === me?.leetcodeUsername, [leetcodeUsername, me?.leetcodeUsername]);
 
@@ -40,6 +46,26 @@ export default function Profile() {
     })();
     return () => { canceled = true; };
   }, [isSelf, leetcodeUsername]);
+
+  // Load my admin requests when viewing own profile
+  useEffect(() => {
+    let canceled = false;
+    if (!isSelf) return;
+    (async () => {
+      try {
+        setReqLoading(true);
+        setReqError('');
+        const { data } = await axios.get('/admin/requests/mine');
+        if (canceled) return;
+        setMyRequests(data.requests || []);
+      } catch (e) {
+        if (!canceled) setReqError(e.response?.data?.message || 'Failed to load your requests');
+      } finally {
+        if (!canceled) setReqLoading(false);
+      }
+    })();
+    return () => { canceled = true; };
+  }, [isSelf]);
 
   if (loading) {
     return (
@@ -76,15 +102,41 @@ export default function Profile() {
             className="h-20 w-20 rounded-full border border-gray-200 dark:border-gray-700 object-cover"
           />
           <div className="flex-1">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-semibold">{fullName}</h1>
-              <span className="text-gray-500">@{profile.leetcodeUsername}</span>
-              {profile.location && (
-                <span className="text-sm text-gray-500">• {profile.location}</span>
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-2xl font-semibold">{fullName}</h1>
+                <span className="text-gray-500">@{profile.leetcodeUsername}</span>
+              </div>
+              {isSelf && (
+                <div className="flex items-center gap-2">
+                  <button
+                    className="px-3 py-1.5 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 text-sm"
+                    disabled={reqSubmitting}
+                    onClick={async () => {
+                      try {
+                        setReqSubmitting(true);
+                        setReqMsg('');
+                        await axios.post('/admin/requests', {});
+                        setReqMsg('Request sent');
+                        const { data } = await axios.get('/admin/requests/mine');
+                        setMyRequests(data.requests || []);
+                      } catch (e) {
+                        setReqMsg(e.response?.data?.message || 'Failed to send request');
+                      } finally {
+                        setReqSubmitting(false);
+                      }
+                    }}
+                  >
+                    {reqSubmitting ? 'Sending…' : 'Request Admin Access'}
+                  </button>
+                  {reqMsg && <span className="text-xs text-gray-600 dark:text-gray-300">{reqMsg}</span>}
+                </div>
               )}
             </div>
-            {profile.bio && (
-              <p className="mt-2 text-gray-700 dark:text-gray-300">{profile.bio}</p>
+            {isSelf && (myRequests?.length > 0) && (
+              <div className="mt-2 text-xs text-gray-600 dark:text-gray-300">
+                Latest request: <span className="capitalize">{myRequests[0]?.status}</span> • {formatDate(myRequests[0]?.createdAt)}
+              </div>
             )}
             <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
               <Stat label="Level" value={profile.level} />
@@ -142,6 +194,8 @@ export default function Profile() {
           </section>
         )}
       </div>
+
+      {/* Simplified: Admin button moved to header; removed lower Admin Access section */}
 
       {/* Content sections */}
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -240,9 +294,6 @@ function EditForm({ profile, onSubmit, saving }) {
     email: profile.email || '',
     firstName: profile.firstName || '',
     lastName: profile.lastName || '',
-    bio: profile.bio || '',
-    location: profile.location || '',
-    website: profile.website || '',
     avatar: profile.avatar || '',
     leetcodeUsername: profile.leetcodeUsername || ''
   });
@@ -252,9 +303,6 @@ function EditForm({ profile, onSubmit, saving }) {
       email: profile.email || '',
       firstName: profile.firstName || '',
       lastName: profile.lastName || '',
-      bio: profile.bio || '',
-      location: profile.location || '',
-      website: profile.website || '',
       avatar: profile.avatar || '',
       leetcodeUsername: profile.leetcodeUsername || ''
     });
@@ -281,22 +329,7 @@ function EditForm({ profile, onSubmit, saving }) {
         <LabeledInput label="Last Name" name="lastName" value={form.lastName} onChange={handleChange} />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <LabeledInput label="Location" name="location" value={form.location} onChange={handleChange} />
-        <LabeledInput label="Website" name="website" value={form.website} onChange={handleChange} placeholder="https://" />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <LabeledInput label="Avatar URL" name="avatar" value={form.avatar} onChange={handleChange} placeholder="https://..." />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">Bio</label>
-        <textarea
-          name="bio"
-          value={form.bio}
-          onChange={handleChange}
-          rows={3}
-          className="mt-1 w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 focus:outline-none focus:ring"
-          placeholder="Tell something about yourself"
-        />
       </div>
       <div className="flex justify-end gap-3">
         <button type="submit" disabled={saving} className="px-4 py-2 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
