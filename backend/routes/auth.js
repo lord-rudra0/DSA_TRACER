@@ -1,7 +1,10 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import axios from 'axios';
 import User from '../models/User.js';
+import Problem from '../models/Problem.js';
+import Submission from '../models/Submission.js';
 import { auth } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -63,6 +66,77 @@ router.post('/register', async (req, res) => {
         leetcodeUsername: user.leetcodeUsername
       }
     });
+
+    // Fire-and-forget: auto-sync LeetCode profile + recent submissions (does not block response)
+    setTimeout(async () => {
+      try {
+        const handle = user.leetcodeUsername?.trim();
+        if (!handle || !process.env.LEETCODE_API_BASE) return;
+
+        // Fetch user profile
+        try {
+          const profileRes = await axios.get(`${process.env.LEETCODE_API_BASE}/${handle}`);
+          const data = profileRes.data || {};
+          const fresh = await User.findById(user._id);
+          if (!fresh) return;
+          fresh.totalProblems = data.totalSolved || 0;
+          fresh.easySolved = data.easySolved || 0;
+          fresh.mediumSolved = data.mediumSolved || 0;
+          fresh.hardSolved = data.hardSolved || 0;
+          fresh.contestRating = data.contestRating || 0;
+          fresh.lastLeetCodeSync = new Date();
+          fresh.leetCodeData = {
+            ranking: data.ranking,
+            acceptanceRate: data.acceptanceRate,
+            contributionPoints: data.contributionPoints
+          };
+          const newXP = (fresh.easySolved * 10) + (fresh.mediumSolved * 20) + (fresh.hardSolved * 30);
+          fresh.xp = Math.max(fresh.xp, newXP);
+          fresh.checkLevelUp();
+          await fresh.save();
+        } catch (e) {
+          console.warn('Post-register profile sync failed:', e?.message || e);
+        }
+
+        // Fetch recent submissions and store up to 200
+        try {
+          const submissionsResponse = await axios.get(`${process.env.LEETCODE_API_BASE}/${handle}/submission`);
+          const recentSubmissions = submissionsResponse.data?.submission || [];
+          for (const submission of recentSubmissions.slice(0, 200)) {
+            const exists = await Submission.findOne({ user: user._id, leetcodeSubmissionId: submission.id });
+            if (exists) continue;
+            let problem = await Problem.findOne({ titleSlug: submission.titleSlug });
+            if (!problem) {
+              problem = new Problem({
+                titleSlug: submission.titleSlug,
+                title: submission.title,
+                difficulty: 'Unknown',
+                tags: []
+              });
+              await problem.save();
+            }
+            const newSubmission = new Submission({
+              user: user._id,
+              problem: problem._id,
+              problemTitle: submission.title,
+              problemDifficulty: problem.difficulty,
+              language: submission.lang,
+              status: submission.statusDisplay,
+              runtime: submission.runtime,
+              memory: submission.memory,
+              leetcodeSubmissionId: submission.id,
+              timestamp: submission.timestamp,
+              firstAccepted: submission.statusDisplay === 'Accepted'
+            });
+            await newSubmission.save();
+          }
+        } catch (e) {
+          console.warn('Post-register submissions sync failed:', e?.message || e);
+        }
+      } catch (e) {
+        console.warn('Post-register sync error:', e?.message || e);
+      }
+    }, 0);
   } catch (error) {
     console.error('Register error:', error);
     res.status(500).json({ message: 'Server error during registration' });

@@ -2,9 +2,11 @@ import express from 'express';
 import axios from 'axios';
 import Problem from '../models/Problem.js';
 import Submission from '../models/Submission.js';
+import User from '../models/User.js';
 import { auth, optionalAuth } from '../middleware/auth.js';
 
 const router = express.Router();
+const SHOULD_LOG_PROXY = process.env.LOG_EXTERNAL_PROXY === 'true';
 
 // Get all problems with filters
 router.get('/', optionalAuth, async (req, res) => {
@@ -35,7 +37,7 @@ router.get('/', optionalAuth, async (req, res) => {
         }
 
         const url = `${process.env.LEETCODE_API_BASE}/problems?${extParams.toString()}`;
-        console.log('[Problems] Proxying to:', url);
+        if (SHOULD_LOG_PROXY) console.log('[Problems] Proxying to:', url);
         const extRes = await axios.get(url);
         // Alfa API may return one of several shapes. Normalize here:
         // - { problems: [...] }
@@ -80,12 +82,32 @@ router.get('/', optionalAuth, async (req, res) => {
           );
         }
 
-        // If authenticated, compute solved set and attach `solved` boolean
+        // If authenticated, compute solved set: hybrid (DB + external recent)
         let acceptedIds = null;
         if (req.user) {
           acceptedIds = await Submission.find({ user: req.user._id, status: 'Accepted' })
             .populate('problem', 'titleSlug')
             .then(rows => new Set(rows.map(r => r.problem?.titleSlug).filter(Boolean)));
+
+          // Try to augment with external recent Accepted slugs
+          try {
+            const userDoc = await User.findById(req.user._id).select('leetcodeUsername');
+            const handle = userDoc?.leetcodeUsername?.trim();
+            if (handle) {
+              const extSubUrl = `${process.env.LEETCODE_API_BASE}/${handle}/submission`;
+              if (SHOULD_LOG_PROXY) console.log('[Problems] Fetching external submissions for solved set:', extSubUrl);
+              const subRes = await axios.get(extSubUrl);
+              const subs = Array.isArray(subRes.data?.submission) ? subRes.data.submission : (subRes.data?.recentSubmissions || []);
+              for (const s of subs.slice(0, 200)) {
+                if ((s.statusDisplay || s.status) === 'Accepted' && s.titleSlug) {
+                  acceptedIds.add(s.titleSlug);
+                }
+              }
+            }
+          } catch (extSolvedErr) {
+            if (SHOULD_LOG_PROXY) console.warn('[Problems] External solved fetch failed:', extSolvedErr?.message || extSolvedErr);
+          }
+
           results = results.map(p => ({ ...p, solved: acceptedIds.has(p.titleSlug) }));
         }
 
@@ -107,7 +129,7 @@ router.get('/', optionalAuth, async (req, res) => {
           total: (parseInt(page) - 1) * parseInt(limit) + results.length + (hasNext ? parseInt(limit) : 0)
         });
       } catch (e) {
-        console.error('External problems proxy error:', e?.message || e);
+        if (SHOULD_LOG_PROXY) console.error('External problems proxy error:', e?.message || e);
         // falls back to local DB path below
       }
     }
@@ -188,6 +210,7 @@ router.get('/', optionalAuth, async (req, res) => {
         // External API doesn't support free-text search reliably; we will filter client-side after fetch
 
         const url = `${base}/problems?${extParams.toString()}`;
+        if (SHOULD_LOG_PROXY) console.log('[Problems] Fallback proxy to:', url);
         const extRes = await axios.get(url);
         const extItems = Array.isArray(extRes.data?.problems) ? extRes.data.problems : (Array.isArray(extRes.data) ? extRes.data : []);
 
@@ -233,7 +256,7 @@ router.get('/', optionalAuth, async (req, res) => {
           total: skip + filtered.length + (hasNext ? parseInt(limit) : 0), // approximate total
         });
       } catch (extErr) {
-        console.error('External problems fallback error:', extErr?.message || extErr);
+        if (SHOULD_LOG_PROXY) console.error('External problems fallback error:', extErr?.message || extErr);
         // Continue to return empty local result
       }
     }

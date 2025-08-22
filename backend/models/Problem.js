@@ -89,7 +89,6 @@ const problemSchema = new mongoose.Schema({
 });
 
 // Indexes
-problemSchema.index({ titleSlug: 1 });
 problemSchema.index({ difficulty: 1 });
 problemSchema.index({ tags: 1 });
 problemSchema.index({ isDailyChallenge: 1, dailyChallengeDate: -1 });

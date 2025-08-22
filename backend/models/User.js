@@ -204,8 +204,6 @@ const userSchema = new mongoose.Schema({
 });
 
 // Indexes for performance
-userSchema.index({ username: 1 });
-userSchema.index({ email: 1 });
 userSchema.index({ xp: -1 });
 userSchema.index({ totalProblems: -1 });
 userSchema.index({ contestRating: -1 });
