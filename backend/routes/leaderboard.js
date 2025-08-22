@@ -250,4 +250,82 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+// List all users (paginated, optional search and sort)
+router.get('/all', optionalAuth, async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 50,
+      search = '',
+      sortBy = 'username', // username, xp, totalProblems, contestRating, lastActive
+      order = 'asc' // asc | desc
+    } = req.query;
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const filter = {};
+    if (search) {
+      const s = search.trim();
+      filter.$or = [
+        { username: { $regex: s, $options: 'i' } },
+        { firstName: { $regex: s, $options: 'i' } },
+        { lastName: { $regex: s, $options: 'i' } }
+      ];
+    }
+
+    const sort = {};
+    const dir = order === 'desc' ? -1 : 1;
+    if (['xp', 'totalProblems', 'contestRating', 'lastActive'].includes(sortBy)) {
+      sort[sortBy] = dir;
+    } else {
+      sort.username = dir;
+    }
+
+    const projection = {
+      username: 1,
+      firstName: 1,
+      lastName: 1,
+      avatar: 1,
+      xp: 1,
+      level: 1,
+      totalProblems: 1,
+      easySolved: 1,
+      mediumSolved: 1,
+      hardSolved: 1,
+      currentStreak: 1,
+      maxStreak: 1,
+      contestRating: 1,
+      lastActive: 1,
+    };
+
+    const [users, total] = await Promise.all([
+      User.find(filter, projection).sort(sort).skip(skip).limit(parseInt(limit)).lean(),
+      User.countDocuments(filter)
+    ]);
+
+    const rows = users.map(u => ({
+      ...u,
+      fullName: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username,
+      isCurrentUser: req.user ? u._id.toString() === req.user._id.toString() : false
+    }));
+
+    return res.json({
+      users: rows,
+      pagination: {
+        current: parseInt(page),
+        total: Math.ceil(total / parseInt(limit)),
+        hasNext: parseInt(page) < Math.ceil(total / parseInt(limit)),
+        hasPrev: parseInt(page) > 1
+      },
+      total,
+      sortBy,
+      order,
+      search
+    });
+  } catch (error) {
+    console.error('List all users error:', error);
+    res.status(500).json({ message: 'Server error fetching users' });
+  }
+});
+
 export default router;

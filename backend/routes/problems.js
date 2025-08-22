@@ -278,6 +278,75 @@ router.get('/', optionalAuth, async (req, res) => {
 });
 
 // Get problem by slug
+// Get daily challenge (place BEFORE slug route to avoid being caught by '/:titleSlug')
+router.get('/daily/challenge', async (req, res) => {
+  try {
+    // Try to get from LeetCode API
+    try {
+      const response = await axios.get(`${process.env.LEETCODE_API_BASE}/daily`);
+      
+      if (response.data) {
+        const dailyChallenge = response.data;
+        
+        // Update or create in database with safe fallbacks
+        let problem = await Problem.findOne({ titleSlug: dailyChallenge.titleSlug });
+        
+        if (!problem) {
+          const rawDiff = (dailyChallenge.difficulty || '').toString();
+          const diffUpper = rawDiff.toUpperCase();
+          const diffPretty = diffUpper === 'EASY' ? 'Easy' : diffUpper === 'MEDIUM' ? 'Medium' : diffUpper === 'HARD' ? 'Hard' : 'Easy';
+          problem = new Problem({
+            titleSlug: dailyChallenge.titleSlug,
+            title: dailyChallenge.title || dailyChallenge.questionTitle || dailyChallenge.titleSlug || 'Untitled',
+            difficulty: diffPretty,
+            tags: dailyChallenge.topicTags?.map(tag => tag.name) || [],
+            leetcodeId: dailyChallenge.questionId,
+            acRate: dailyChallenge.acRate,
+            isPremium: dailyChallenge.isPaidOnly || false
+          });
+        }
+        
+        problem.isDailyChallenge = true;
+        problem.dailyChallengeDate = new Date();
+        try {
+          await problem.save();
+        } catch (validationErr) {
+          // Do not crash daily endpoint due to validation; return external payload
+          console.warn('Daily challenge save validation error:', validationErr?.message || validationErr);
+        }
+        
+        return res.json({
+          ...problem.toObject(),
+          date: dailyChallenge.date,
+          link: dailyChallenge.link
+        });
+      }
+      
+      return res.status(404).json({ message: 'Daily challenge not found' });
+    } catch (apiError) {
+      console.error('Daily challenge API error:', apiError);
+      
+      // Fallback to database
+      const dailyProblem = await Problem.findOne({
+        isDailyChallenge: true,
+        dailyChallengeDate: {
+          $gte: new Date(new Date().setHours(0, 0, 0, 0))
+        }
+      });
+      
+      if (dailyProblem) {
+        return res.json(dailyProblem);
+      } else {
+        return res.status(404).json({ message: 'Daily challenge not found' });
+      }
+    }
+  } catch (error) {
+    console.error('Get daily challenge error:', error);
+    res.status(500).json({ message: 'Server error fetching daily challenge' });
+  }
+});
+
+// Get problem by slug
 router.get('/:titleSlug', optionalAuth, async (req, res) => {
   try {
     const { titleSlug } = req.params;
