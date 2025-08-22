@@ -52,7 +52,7 @@ router.get('/requests/pending/count', auth, requirePrincipalAdmin, async (req, r
   }
 });
 
-// Act on a request (approve/reject) — does NOT grant admin; only marks status
+// Act on a request (approve/reject). Optionally grant admin on approve if grantRole=true
 router.post('/requests/:id/:action', auth, requirePrincipalAdmin, async (req, res) => {
   try {
     const { id, action } = req.params;
@@ -66,21 +66,16 @@ router.post('/requests/:id/:action', auth, requirePrincipalAdmin, async (req, re
     await r.save();
     let roleUpdate = null;
 
-    // Optional role grant if explicitly requested and policy allows
+    // Optional role grant if explicitly requested
     const grantRole = (req.query.grantRole === 'true');
     if (grantRole && action === 'approve') {
       const targetUser = await User.findById(r.user);
       if (!targetUser) return res.status(404).json({ message: 'User not found' });
-      // Policy: only ADMIN_EMAIL may be an admin
-      if (targetUser.email === process.env.ADMIN_EMAIL) {
-        if (targetUser.role !== 'admin') {
-          targetUser.role = 'admin';
-          await targetUser.save();
-        }
-        roleUpdate = { promoted: true, userId: String(targetUser._id) };
-      } else {
-        roleUpdate = { promoted: false, reason: 'Only principal admin (ADMIN_EMAIL) can have admin role per policy.' };
+      if (targetUser.role !== 'admin') {
+        targetUser.role = 'admin';
+        await targetUser.save();
       }
+      roleUpdate = { promoted: true, userId: String(targetUser._id) };
     }
 
     return res.json({ message: `Request ${r.status}`, request: r, roleUpdate });
@@ -91,23 +86,44 @@ router.post('/requests/:id/:action', auth, requirePrincipalAdmin, async (req, re
 });
 
 // Explicit controlled promotion endpoint (principal admin only)
-// Note: Policy enforcement — only ADMIN_EMAIL can be admin. Others will be rejected.
+// Accepts either userId or email
 router.post('/promote', auth, requirePrincipalAdmin, async (req, res) => {
   try {
-    const { userId } = req.body || {};
-    if (!userId) return res.status(400).json({ message: 'userId is required' });
-    const targetUser = await User.findById(userId);
+    const { userId, email } = req.body || {};
+    let targetUser = null;
+    if (userId) targetUser = await User.findById(userId);
+    else if (email) targetUser = await User.findOne({ email });
     if (!targetUser) return res.status(404).json({ message: 'User not found' });
-    if (targetUser.email !== process.env.ADMIN_EMAIL) {
-      return res.status(400).json({ message: 'Only the principal admin (ADMIN_EMAIL) can have admin role per policy' });
-    }
     if (targetUser.role !== 'admin') {
       targetUser.role = 'admin';
       await targetUser.save();
     }
-    return res.json({ message: 'User granted admin (principal admin)', user: { id: targetUser._id, email: targetUser.email, role: targetUser.role } });
+    return res.json({ message: 'User promoted to admin', user: { id: targetUser._id, email: targetUser.email, role: targetUser.role } });
   } catch (e) {
     console.error('Promote user error:', e);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Demote endpoint (principal admin only). Cannot demote the principal admin (ADMIN_EMAIL)
+router.post('/demote', auth, requirePrincipalAdmin, async (req, res) => {
+  try {
+    const { userId, email } = req.body || {};
+    let targetUser = null;
+    if (userId) targetUser = await User.findById(userId);
+    else if (email) targetUser = await User.findOne({ email });
+    if (!targetUser) return res.status(404).json({ message: 'User not found' });
+    const principal = (process.env.ADMIN_EMAIL || '').toLowerCase();
+    if (targetUser.email?.toLowerCase() === principal) {
+      return res.status(400).json({ message: 'Cannot demote the principal admin' });
+    }
+    if (targetUser.role !== 'user') {
+      targetUser.role = 'user';
+      await targetUser.save();
+    }
+    return res.json({ message: 'User demoted to normal user', user: { id: targetUser._id, email: targetUser.email, role: targetUser.role } });
+  } catch (e) {
+    console.error('Demote user error:', e);
     return res.status(500).json({ message: 'Server error' });
   }
 });

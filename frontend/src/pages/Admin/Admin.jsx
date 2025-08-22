@@ -6,6 +6,7 @@ export default function Admin() {
   const qc = useQueryClient();
   const [grantRole, setGrantRole] = useState(false);
   const [toast, setToast] = useState(null); // { type: 'success'|'error', msg: string }
+  const [email, setEmail] = useState('');
 
   const { data, isLoading, isError } = useQuery(['admin:requests'], async () => {
     const res = await axios.get('/admin/requests');
@@ -47,13 +48,27 @@ export default function Admin() {
         </div>
       )}
       <h1 className="text-2xl font-semibold">Admin Dashboard</h1>
-      <p className="text-gray-600 dark:text-gray-300">Manage user requests to contact the principal admin.</p>
+      <p className="text-gray-600 dark:text-gray-300">Manage admin requests and roles.</p>
 
       <div className="flex items-center gap-2 p-3 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
         <input id="grantRole" type="checkbox" className="accent-primary-600" checked={grantRole} onChange={(e) => setGrantRole(e.target.checked)} />
         <label htmlFor="grantRole" className="text-sm text-gray-700 dark:text-gray-300">
-          On approve, also grant admin if user email matches ADMIN_EMAIL policy
+          On approve, also grant admin to the requester
         </label>
+      </div>
+
+      <div className="p-4 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 space-y-3">
+        <div className="font-semibold">Promote/Demote Admin</div>
+        <div className="text-sm text-gray-600 dark:text-gray-300">Principal admin can promote or demote any user by email.</div>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            className="input flex-1"
+            placeholder="user@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <PromoteButtons email={email} setToast={setToast} />
+        </div>
       </div>
 
       <div className="divide-y rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
@@ -83,6 +98,37 @@ export default function Admin() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function PromoteButtons({ email, setToast }) {
+  const promote = useMutation(async () => {
+    const res = await axios.post('/admin/promote', { email });
+    return res.data;
+  }, {
+    onSuccess: (data) => setToast({ type: 'success', msg: data?.message || 'User promoted' }),
+    onError: (err) => setToast({ type: 'error', msg: err?.response?.data?.message || 'Promote failed' })
+  });
+
+  const demote = useMutation(async () => {
+    const res = await axios.post('/admin/demote', { email });
+    return res.data;
+  }, {
+    onSuccess: (data) => setToast({ type: 'success', msg: data?.message || 'User demoted' }),
+    onError: (err) => setToast({ type: 'error', msg: err?.response?.data?.message || 'Demote failed' })
+  });
+
+  const disabled = !email || promote.isLoading || demote.isLoading;
+
+  return (
+    <div className="flex items-center gap-2">
+      <button className="btn btn-success" disabled={disabled} onClick={() => promote.mutate()}>
+        {promote.isLoading ? 'Promoting…' : 'Promote to Admin'}
+      </button>
+      <button className="btn btn-error" disabled={disabled} onClick={() => demote.mutate()}>
+        {demote.isLoading ? 'Demoting…' : 'Demote to User'}
+      </button>
     </div>
   );
 }
