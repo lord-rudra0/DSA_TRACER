@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 
 export default function Leaderboard() {
+  const [tab, setTab] = useState('all'); // all | season
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [rows, setRows] = useState([]);
@@ -10,12 +11,15 @@ export default function Leaderboard() {
   const [sortBy, setSortBy] = useState('xp');
   const [timeframe, setTimeframe] = useState('all');
   const [stats, setStats] = useState(null);
+  const [seasonKey, setSeasonKey] = useState('');
 
   const params = useMemo(() => new URLSearchParams({ page, limit, sortBy, timeframe }), [page, limit, sortBy, timeframe]);
 
+  const seasonParams = useMemo(() => new URLSearchParams({ page, limit, key: seasonKey || undefined }), [page, limit, seasonKey]);
+
   useEffect(() => {
     let cancelled = false;
-    async function load() {
+    async function loadAllTime() {
       setLoading(true);
       setError('');
       try {
@@ -39,9 +43,41 @@ export default function Leaderboard() {
         if (!cancelled) setLoading(false);
       }
     }
-    load();
+    if (tab === 'all') {
+      loadAllTime();
+    }
     return () => { cancelled = true; };
-  }, [params]);
+  }, [params, tab]);
+
+  // Season leaderboard fetch
+  useEffect(() => {
+    if (tab !== 'season') return;
+    let cancelled = false;
+    async function loadSeason() {
+      setLoading(true);
+      setError('');
+      try {
+        const res = await fetch(`/api/season/leaderboard?${seasonParams.toString()}`);
+        if (!res.ok) throw new Error(`Season leaderboard error ${res.status}`);
+        const json = await res.json();
+        if (cancelled) return;
+        setRows(json.items || []);
+        setPagination({
+          current: json.page || 1,
+          total: Math.ceil((json.total || 0) / (parseInt(limit) || 25)) || 1,
+          hasNext: (json.page || 1) * (parseInt(limit) || 25) < (json.total || 0),
+          hasPrev: (json.page || 1) > 1,
+        });
+        setSeasonKey(json.key || seasonKey);
+      } catch (e) {
+        if (!cancelled) setError(e.message || 'Failed to load season leaderboard');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    loadSeason();
+    return () => { cancelled = true; };
+  }, [seasonParams, tab]);
 
   const topPerformers = stats?.topPerformers || [];
 
@@ -50,28 +86,39 @@ export default function Leaderboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Leaderboard</h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-1">Top performers and global rankings</p>
+          <p className="text-gray-600 dark:text-gray-300 mt-1">Top performers and rankings</p>
         </div>
-        <div className="flex gap-3">
-          <select
-            value={sortBy}
-            onChange={(e) => { setPage(1); setSortBy(e.target.value); }}
-            className="border rounded px-3 py-2 bg-white dark:bg-gray-800"
-          >
-            <option value="xp">Sort by XP</option>
-            <option value="totalProblems">Sort by Problems Solved</option>
-            <option value="currentStreak">Sort by Current Streak</option>
-            <option value="contestRating">Sort by Contest Rating</option>
-          </select>
-          <select
-            value={timeframe}
-            onChange={(e) => { setPage(1); setTimeframe(e.target.value); }}
-            className="border rounded px-3 py-2 bg-white dark:bg-gray-800"
-          >
-            <option value="all">All time</option>
-            <option value="week">This week</option>
-            <option value="month">This month</option>
-          </select>
+        <div className="flex gap-3 items-center">
+          <div className="inline-flex rounded border overflow-hidden">
+            <button className={`px-3 py-2 text-sm ${tab==='all'?'bg-indigo-600 text-white':'bg-white dark:bg-gray-800'}`} onClick={()=>{setTab('all'); setPage(1);}}>All-time</button>
+            <button className={`px-3 py-2 text-sm ${tab==='season'?'bg-indigo-600 text-white':'bg-white dark:bg-gray-800'}`} onClick={()=>{setTab('season'); setPage(1);}}>Season</button>
+          </div>
+          {tab==='all' && (
+            <>
+              <select
+                value={sortBy}
+                onChange={(e) => { setPage(1); setSortBy(e.target.value); }}
+                className="border rounded px-3 py-2 bg-white dark:bg-gray-800"
+              >
+                <option value="xp">Sort by XP</option>
+                <option value="totalProblems">Sort by Problems Solved</option>
+                <option value="currentStreak">Sort by Current Streak</option>
+                <option value="contestRating">Sort by Contest Rating</option>
+              </select>
+              <select
+                value={timeframe}
+                onChange={(e) => { setPage(1); setTimeframe(e.target.value); }}
+                className="border rounded px-3 py-2 bg-white dark:bg-gray-800"
+              >
+                <option value="all">All time</option>
+                <option value="week">This week</option>
+                <option value="month">This month</option>
+              </select>
+            </>
+          )}
+          {tab==='season' && (
+            <div className="text-sm text-gray-600 dark:text-gray-300">Season: {seasonKey || 'current'}</div>
+          )}
         </div>
       </div>
 
@@ -106,10 +153,19 @@ export default function Leaderboard() {
               <tr>
                 <th className="px-4 py-3">Rank</th>
                 <th className="px-4 py-3">User</th>
-                <th className="px-4 py-3">XP</th>
-                <th className="px-4 py-3">Solved</th>
-                <th className="px-4 py-3">Streak</th>
-                <th className="px-4 py-3">Contest Rating</th>
+                {tab==='season' ? (
+                  <>
+                    <th className="px-4 py-3">Season XP</th>
+                    <th className="px-4 py-3">All-time XP</th>
+                  </>
+                ) : (
+                  <>
+                    <th className="px-4 py-3">XP</th>
+                    <th className="px-4 py-3">Solved</th>
+                    <th className="px-4 py-3">Streak</th>
+                    <th className="px-4 py-3">Contest Rating</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -124,21 +180,30 @@ export default function Leaderboard() {
                   <tr key={u._id} className="border-t border-gray-100 dark:border-gray-800">
                     <td className="px-4 py-3">{u.rank}</td>
                     <td className="px-4 py-3 flex items-center gap-3">
-                      <img src={u.avatar || `https://api.dicebear.com/8.x/identicon/svg?seed=${encodeURIComponent(u.leetcodeUsername)}`}
-                           alt={u.leetcodeUsername}
+                      <img src={(u.avatar || u.avatarUrl) || `https://api.dicebear.com/8.x/identicon/svg?seed=${encodeURIComponent(u.leetcodeUsername)}`}
+                           alt={u.leetcodeUsername || u.email}
                            className="w-8 h-8 rounded-full object-cover" />
                       <div>
-                        <div className="font-medium">{u.fullName || u.leetcodeUsername}</div>
-                        <div className="text-xs text-gray-500">@{u.leetcodeUsername}</div>
+                        <div className="font-medium">{u.fullName || u.leetcodeUsername || u.email}</div>
+                        {u.leetcodeUsername && <div className="text-xs text-gray-500">@{u.leetcodeUsername}</div>}
                       </div>
                       {u.isCurrentUser && (
                         <span className="ml-2 text-xs px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200">You</span>
                       )}
                     </td>
-                    <td className="px-4 py-3">{u.xp ?? 0}</td>
-                    <td className="px-4 py-3">{u.totalProblems ?? 0}</td>
-                    <td className="px-4 py-3">{u.currentStreak ?? 0}</td>
-                    <td className="px-4 py-3">{u.contestRating ?? 0}</td>
+                    {tab==='season' ? (
+                      <>
+                        <td className="px-4 py-3">{u.seasonXP ?? u.seasonXp ?? 0}</td>
+                        <td className="px-4 py-3">{u.xp ?? 0}</td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-4 py-3">{u.xp ?? 0}</td>
+                        <td className="px-4 py-3">{u.totalProblems ?? 0}</td>
+                        <td className="px-4 py-3">{u.currentStreak ?? 0}</td>
+                        <td className="px-4 py-3">{u.contestRating ?? 0}</td>
+                      </>
+                    )}
                   </tr>
                 ))
               )}

@@ -5,6 +5,7 @@ import Submission from '../models/Submission.js';
 import Problem from '../models/Problem.js';
 import User from '../models/User.js';
 import { auth, requireAdmin } from '../middleware/auth.js';
+import { awardXP } from '../utils/xp.js';
 
 const router = express.Router();
 
@@ -17,7 +18,7 @@ function computeStatus(startAt, endAt) {
 }
 
 // Create a competition (admin only)
-router.post('/', requireAdmin, async (req, res) => {
+router.post('/', auth, requireAdmin, async (req, res) => {
   try {
     const { name, description = '', problems = [], startAt, endAt, visibility = 'public', scoring } = req.body || {};
     if (!name || !Array.isArray(problems) || problems.length === 0 || !startAt || !endAt) {
@@ -45,6 +46,8 @@ router.post('/', requireAdmin, async (req, res) => {
       status: computeStatus(start, end),
     });
 
+    // Award XP to creator
+    try { await awardXP(req.user._id, 50, 'competition_create', { competitionId: String(comp._id) }); } catch (_) {}
     res.status(201).json({ competition: comp });
   } catch (err) {
     console.error('Create competition error:', err);

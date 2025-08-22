@@ -12,6 +12,8 @@ import contestRoutes from './routes/contest.js';
 import statsRoutes from './routes/stats.js';
 import competitionsRoutes from './routes/competitions.js';
 import adminRoutes from './routes/admin.js';
+import seasonRoutes from './routes/season.js';
+import xpRoutes from './routes/xp.js';
 
 dotenv.config();
 
@@ -53,6 +55,8 @@ app.use('/api/contest', contestRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/competitions', competitionsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/season', seasonRoutes);
+app.use('/api/xp', xpRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

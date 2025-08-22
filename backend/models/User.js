@@ -70,6 +70,20 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  // Seasonal XP (resets per season)
+  seasonXP: {
+    type: Number,
+    default: 0
+  },
+  seasonKey: {
+    type: String,
+    default: function() {
+      const d = new Date();
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+      return `${y}-${m}`; // monthly season key e.g., 2025-08
+    }
+  },
   level: {
     type: Number,
     default: 1

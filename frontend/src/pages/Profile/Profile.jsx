@@ -18,6 +18,13 @@ export default function Profile() {
   const [reqError, setReqError] = useState('');
   const [reqSubmitting, setReqSubmitting] = useState(false);
   const [reqMsg, setReqMsg] = useState('');
+  // XP logs (self only)
+  const [xpLogs, setXpLogs] = useState([]);
+  const [xpLoading, setXpLoading] = useState(false);
+  const [xpError, setXpError] = useState('');
+  const [xpPage, setXpPage] = useState(1);
+  const [xpHasNext, setXpHasNext] = useState(false);
+  const xpLimit = 10;
 
   const isSelf = useMemo(() => !leetcodeUsername || leetcodeUsername === me?.leetcodeUsername, [leetcodeUsername, me?.leetcodeUsername]);
 
@@ -46,6 +53,29 @@ export default function Profile() {
     })();
     return () => { canceled = true; };
   }, [isSelf, leetcodeUsername]);
+
+  // Load XP logs when viewing self
+  useEffect(() => {
+    if (!isSelf) return;
+    let canceled = false;
+    (async () => {
+      try {
+        setXpLoading(true);
+        setXpError('');
+        const { data } = await axios.get(`/api/xp/logs`, { params: { page: xpPage, limit: xpLimit } });
+        if (canceled) return;
+        setXpLogs(data.items || data.logs || []);
+        // Accept either {pagination} or hasNext
+        const hasNext = data.pagination ? data.pagination.hasNext : !!data.hasNext;
+        setXpHasNext(!!hasNext);
+      } catch (e) {
+        if (!canceled) setXpError(e.response?.data?.message || 'Failed to load XP history');
+      } finally {
+        if (!canceled) setXpLoading(false);
+      }
+    })();
+    return () => { canceled = true; };
+  }, [isSelf, xpPage]);
 
   // Load my admin requests when viewing own profile
   useEffect(() => {
@@ -236,7 +266,7 @@ export default function Profile() {
         </section>
       </div>
 
-      {/* Badges and Friends */}
+      {/* Badges, Friends, and XP History */}
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
         <section className="rounded-xl bg-white dark:bg-gray-900 shadow-sm border border-gray-200 dark:border-gray-800 p-6">
           <h2 className="text-lg font-semibold">Badges</h2>
@@ -254,7 +284,9 @@ export default function Profile() {
         </section>
 
         <section className="lg:col-span-2 rounded-xl bg-white dark:bg-gray-900 shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-          <h2 className="text-lg font-semibold">Friends</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Friends</h2>
+          </div>
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {profile.friends?.length ? (
               profile.friends
@@ -276,6 +308,56 @@ export default function Profile() {
           </div>
         </section>
       </div>
+
+      {isSelf && (
+        <div className="mt-6 grid grid-cols-1 gap-6">
+          <section className="rounded-xl bg-white dark:bg-gray-900 shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">XP History</h2>
+              <div className="flex items-center gap-2">
+                <button
+                  className="px-3 py-2 border rounded disabled:opacity-50"
+                  disabled={xpPage === 1 || xpLoading}
+                  onClick={() => setXpPage(p => Math.max(1, p - 1))}
+                >Previous</button>
+                <button
+                  className="px-3 py-2 border rounded disabled:opacity-50"
+                  disabled={!xpHasNext || xpLoading}
+                  onClick={() => setXpPage(p => p + 1)}
+                >Next</button>
+              </div>
+            </div>
+            <div className="mt-3 overflow-x-auto">
+              {xpLoading ? (
+                <div className="py-6 text-sm">Loading…</div>
+              ) : xpError ? (
+                <div className="py-3 text-sm text-red-600">{xpError}</div>
+              ) : xpLogs.length === 0 ? (
+                <div className="py-3 text-sm text-gray-600">No XP activity yet.</div>
+              ) : (
+                <table className="min-w-full text-left text-sm">
+                  <thead className="bg-gray-50 dark:bg-gray-800">
+                    <tr>
+                      <th className="px-4 py-2">When</th>
+                      <th className="px-4 py-2">Change</th>
+                      <th className="px-4 py-2">Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {xpLogs.map((log) => (
+                      <tr key={log._id} className="border-t border-gray-100 dark:border-gray-800">
+                        <td className="px-4 py-2">{formatDate(log.createdAt)}</td>
+                        <td className={`px-4 py-2 font-medium ${log.delta >= 0 ? 'text-green-600' : 'text-red-600'}`}>{log.delta > 0 ? `+${log.delta}` : log.delta}</td>
+                        <td className="px-4 py-2">{formatReason(log.reason)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
@@ -386,5 +468,15 @@ function formatDate(ts) {
     return d.toLocaleDateString();
   } catch {
     return '';
+  }
+}
+
+function formatReason(reason) {
+  if (!reason) return '—';
+  try {
+    const pretty = String(reason).replace(/[_-]+/g, ' ').trim();
+    return pretty.charAt(0).toUpperCase() + pretty.slice(1);
+  } catch {
+    return String(reason);
   }
 }

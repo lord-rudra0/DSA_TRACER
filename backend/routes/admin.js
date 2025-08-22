@@ -2,6 +2,7 @@ import express from 'express';
 import AdminRequest from '../models/AdminRequest.js';
 import User from '../models/User.js';
 import { auth, requirePrincipalAdmin } from '../middleware/auth.js';
+import { awardXP } from '../utils/xp.js';
 
 const router = express.Router();
 
@@ -84,6 +85,8 @@ router.post('/requests/:id/:action', auth, requirePrincipalAdmin, async (req, re
     if (r.status !== 'pending') return res.status(400).json({ message: 'Request already resolved' });
     r.status = action === 'approve' ? 'approved' : 'rejected';
     await r.save();
+    // XP: approver gets small XP for handling requests
+    try { await awardXP(req.user._id, 5, `admin_request_${action}`, { requestId: String(r._id) }); } catch (_) {}
     let roleUpdate = null;
 
     // Optional role grant if explicitly requested
@@ -118,6 +121,8 @@ router.post('/promote', auth, requirePrincipalAdmin, async (req, res) => {
       targetUser.role = 'admin';
       await targetUser.save();
     }
+    // XP for acting admin
+    try { await awardXP(req.user._id, 10, 'admin_promote', { targetUserId: String(targetUser._id) }); } catch (_) {}
     return res.json({ message: 'User promoted to admin', user: { id: targetUser._id, email: targetUser.email, role: targetUser.role } });
   } catch (e) {
     console.error('Promote user error:', e);
@@ -141,6 +146,8 @@ router.post('/demote', auth, requirePrincipalAdmin, async (req, res) => {
       targetUser.role = 'user';
       await targetUser.save();
     }
+    // XP for acting admin
+    try { await awardXP(req.user._id, 5, 'admin_demote', { targetUserId: String(targetUser._id) }); } catch (_) {}
     return res.json({ message: 'User demoted to normal user', user: { id: targetUser._id, email: targetUser.email, role: targetUser.role } });
   } catch (e) {
     console.error('Demote user error:', e);
