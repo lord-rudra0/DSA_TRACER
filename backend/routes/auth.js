@@ -9,11 +9,11 @@ const router = express.Router();
 // Register
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password, firstName, lastName } = req.body;
+    const { username, email, password, firstName, lastName, leetcodeUsername } = req.body;
 
     // Validation
-    if (!username || !email || !password) {
-      return res.status(400).json({ message: 'Please provide all required fields' });
+    if (!username || !email || !password || !leetcodeUsername) {
+      return res.status(400).json({ message: 'Please provide all required fields including LeetCode username' });
     }
 
     // Check if user exists
@@ -37,7 +37,8 @@ router.post('/register', async (req, res) => {
       email,
       password: hashedPassword,
       firstName,
-      lastName
+      lastName,
+      leetcodeUsername
     });
 
     await user.save();
@@ -58,7 +59,8 @@ router.post('/register', async (req, res) => {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
-        avatar: user.avatar
+        avatar: user.avatar,
+        leetcodeUsername: user.leetcodeUsername
       }
     });
   } catch (error) {

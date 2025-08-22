@@ -80,13 +80,19 @@ router.get('/', optionalAuth, async (req, res) => {
           );
         }
 
-        // Add user-specific solved filter if requested and user is authenticated
-        if (req.user && status) {
-          const acceptedIds = await Submission.find({ user: req.user._id, status: 'Accepted' })
+        // If authenticated, compute solved set and attach `solved` boolean
+        let acceptedIds = null;
+        if (req.user) {
+          acceptedIds = await Submission.find({ user: req.user._id, status: 'Accepted' })
             .populate('problem', 'titleSlug')
             .then(rows => new Set(rows.map(r => r.problem?.titleSlug).filter(Boolean)));
-          if (status === 'solved') results = results.filter(p => acceptedIds.has(p.titleSlug));
-          if (status === 'unsolved') results = results.filter(p => !acceptedIds.has(p.titleSlug));
+          results = results.map(p => ({ ...p, solved: acceptedIds.has(p.titleSlug) }));
+        }
+
+        // Apply user-specific status filter if requested
+        if (status && req.user && acceptedIds) {
+          if (status === 'solved') results = results.filter(p => p.solved);
+          if (status === 'unsolved') results = results.filter(p => !p.solved);
         }
 
         const hasNext = results.length === parseInt(limit);

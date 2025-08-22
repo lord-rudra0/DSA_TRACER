@@ -11,6 +11,7 @@ const Register = () => {
     confirmPassword: '',
     firstName: '',
     lastName: '',
+    leetcodeUsername: '',
     agreeTerms: false
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -31,6 +32,10 @@ const Register = () => {
   };
 
   const validateForm = () => {
+    if (!formData.leetcodeUsername?.trim()) {
+      setError('LeetCode username is required');
+      return false;
+    }
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return false;
@@ -59,7 +64,8 @@ const Register = () => {
       email: formData.email,
       password: formData.password,
       firstName: formData.firstName,
-      lastName: formData.lastName
+      lastName: formData.lastName,
+      leetcodeUsername: formData.leetcodeUsername
     });
     
     if (result.success) {
@@ -203,6 +209,23 @@ const Register = () => {
                   onChange={handleChange}
                   className="mt-1 input"
                   placeholder="johndoe"
+                />
+              </div>
+
+              {/* LeetCode Username (required) */}
+              <div>
+                <label htmlFor="leetcodeUsername" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  LeetCode username
+                </label>
+                <input
+                  id="leetcodeUsername"
+                  name="leetcodeUsername"
+                  type="text"
+                  required
+                  value={formData.leetcodeUsername}
+                  onChange={handleChange}
+                  className="mt-1 input"
+                  placeholder="your-leetcode-handle"
                 />
               </div>
 

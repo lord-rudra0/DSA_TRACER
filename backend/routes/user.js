@@ -59,7 +59,7 @@ router.post('/sync-leetcode', auth, async (req, res) => {
       const submissionsResponse = await axios.get(`${process.env.LEETCODE_API_BASE}/${leetcodeUsername}/submission`);
       const recentSubmissions = submissionsResponse.data.submission || [];
       
-      for (const submission of recentSubmissions.slice(0, 20)) { // Last 20 submissions
+      for (const submission of recentSubmissions.slice(0, 200)) { // Last 200 submissions
         // Check if submission already exists
         const existingSubmission = await Submission.findOne({
           user: user._id,
@@ -119,6 +119,98 @@ router.post('/sync-leetcode', auth, async (req, res) => {
     } else {
       res.status(500).json({ message: 'Server error syncing LeetCode data' });
     }
+  }
+});
+
+// Set LeetCode username and immediately sync profile + recent submissions
+router.put('/leetcode-username', auth, async (req, res) => {
+  try {
+    const { leetcodeUsername } = req.body;
+    if (!leetcodeUsername) {
+      return res.status(400).json({ message: 'LeetCode username is required' });
+    }
+
+    const user = await User.findById(req.user._id);
+    user.leetcodeUsername = leetcodeUsername;
+    await user.save();
+
+    // Reuse sync logic: fetch profile
+    const userDataResponse = await axios.get(`${process.env.LEETCODE_API_BASE}/${leetcodeUsername}`);
+    const userData = userDataResponse.data;
+
+    if (!userData || userData.errors) {
+      return res.status(404).json({ message: 'LeetCode user not found' });
+    }
+
+    user.totalProblems = userData.totalSolved || 0;
+    user.easySolved = userData.easySolved || 0;
+    user.mediumSolved = userData.mediumSolved || 0;
+    user.hardSolved = userData.hardSolved || 0;
+    user.contestRating = userData.contestRating || 0;
+    user.lastLeetCodeSync = new Date();
+    user.leetCodeData = {
+      ranking: userData.ranking,
+      acceptanceRate: userData.acceptanceRate,
+      contributionPoints: userData.contributionPoints
+    };
+
+    const oldXP = user.xp;
+    const newXP = (user.easySolved * 10) + (user.mediumSolved * 20) + (user.hardSolved * 30);
+    user.xp = Math.max(user.xp, newXP);
+    const leveledUp = user.checkLevelUp();
+    await user.save();
+
+    // Sync recent submissions (up to 200)
+    try {
+      const submissionsResponse = await axios.get(`${process.env.LEETCODE_API_BASE}/${leetcodeUsername}/submission`);
+      const recentSubmissions = submissionsResponse.data.submission || [];
+      for (const submission of recentSubmissions.slice(0, 200)) {
+        const existingSubmission = await Submission.findOne({
+          user: user._id,
+          leetcodeSubmissionId: submission.id
+        });
+        if (!existingSubmission) {
+          let problem = await Problem.findOne({ titleSlug: submission.titleSlug });
+          if (!problem) {
+            problem = new Problem({
+              titleSlug: submission.titleSlug,
+              title: submission.title,
+              difficulty: 'Unknown',
+              tags: []
+            });
+            await problem.save();
+          }
+          const newSubmission = new Submission({
+            user: user._id,
+            problem: problem._id,
+            problemTitle: submission.title,
+            problemDifficulty: problem.difficulty,
+            language: submission.lang,
+            status: submission.statusDisplay,
+            runtime: submission.runtime,
+            memory: submission.memory,
+            leetcodeSubmissionId: submission.id,
+            timestamp: submission.timestamp,
+            firstAccepted: submission.statusDisplay === 'Accepted'
+          });
+          await newSubmission.save();
+        }
+      }
+    } catch (submissionError) {
+      console.error('Error syncing submissions (set username):', submissionError.message || submissionError);
+    }
+
+    res.json({
+      message: 'LeetCode username saved and data synced',
+      user: {
+        ...user.toObject(),
+        xpGained: user.xp - oldXP,
+        leveledUp
+      }
+    });
+  } catch (error) {
+    console.error('Set LeetCode username error:', error);
+    res.status(500).json({ message: 'Server error saving LeetCode username' });
   }
 });
 
