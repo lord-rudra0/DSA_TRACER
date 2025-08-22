@@ -6,10 +6,42 @@ export default function Admin() {
   const qc = useQueryClient();
   const [grantRole, setGrantRole] = useState(false);
   const [toast, setToast] = useState(null); // { type: 'success'|'error', msg: string }
+
+function AdminRow({ u, setToast, onChanged }) {
+  const demote = useMutation(async () => {
+    const res = await axios.post('/admin/demote', { email: u.email });
+    return res.data;
+  }, {
+    onSuccess: (data) => { setToast({ type: 'success', msg: data?.message || 'User demoted' }); onChanged?.(); },
+    onError: (err) => setToast({ type: 'error', msg: err?.response?.data?.message || 'Demote failed' })
+  });
+
+  return (
+    <div className="py-3 flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <img src={u.avatar || 'https://api.dicebear.com/7.x/identicon/svg'} alt="avatar" className="w-8 h-8 rounded-full" />
+        <div>
+          <div className="font-medium">{u.leetcodeUsername || u.email}</div>
+          <div className="text-sm text-gray-500">{u.email} {u.isPrincipal && <span className="ml-2 px-2 py-0.5 text-xs rounded bg-indigo-600 text-white">Principal</span>}</div>
+        </div>
+      </div>
+      <div>
+        <button className="btn btn-error" disabled={u.isPrincipal || demote.isLoading} onClick={() => demote.mutate()}>
+          {demote.isLoading ? 'Demoting…' : 'Demote'}
+        </button>
+      </div>
+    </div>
+  );
+}
   const [email, setEmail] = useState('');
 
   const { data, isLoading, isError } = useQuery(['admin:requests'], async () => {
     const res = await axios.get('/admin/requests');
+    return res.data;
+  });
+
+  const { data: adminsData, isLoading: adminsLoading, refetch: refetchAdmins } = useQuery(['admin:admins'], async () => {
+    const res = await axios.get('/admin/admins');
     return res.data;
   });
 
@@ -67,8 +99,24 @@ export default function Admin() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <PromoteButtons email={email} setToast={setToast} />
+          <PromoteButtons email={email} setToast={setToast} onChanged={refetchAdmins} />
         </div>
+      </div>
+
+      <div className="p-4 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 space-y-3">
+        <div className="font-semibold">Current Admins</div>
+        {adminsLoading ? (
+          <div>Loading admins…</div>
+        ) : (
+          <div className="divide-y">
+            {(adminsData?.admins || []).length === 0 && (
+              <div className="py-2 text-gray-500">No admins.</div>
+            )}
+            {(adminsData?.admins || []).map((u) => (
+              <AdminRow key={u.id} u={u} setToast={setToast} onChanged={refetchAdmins} />
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="divide-y rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
@@ -102,12 +150,12 @@ export default function Admin() {
   );
 }
 
-function PromoteButtons({ email, setToast }) {
+function PromoteButtons({ email, setToast, onChanged }) {
   const promote = useMutation(async () => {
     const res = await axios.post('/admin/promote', { email });
     return res.data;
   }, {
-    onSuccess: (data) => setToast({ type: 'success', msg: data?.message || 'User promoted' }),
+    onSuccess: (data) => { setToast({ type: 'success', msg: data?.message || 'User promoted' }); onChanged?.(); },
     onError: (err) => setToast({ type: 'error', msg: err?.response?.data?.message || 'Promote failed' })
   });
 
@@ -115,7 +163,7 @@ function PromoteButtons({ email, setToast }) {
     const res = await axios.post('/admin/demote', { email });
     return res.data;
   }, {
-    onSuccess: (data) => setToast({ type: 'success', msg: data?.message || 'User demoted' }),
+    onSuccess: (data) => { setToast({ type: 'success', msg: data?.message || 'User demoted' }); onChanged?.(); },
     onError: (err) => setToast({ type: 'error', msg: err?.response?.data?.message || 'Demote failed' })
   });
 

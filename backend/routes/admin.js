@@ -19,6 +19,26 @@ router.post('/requests', auth, async (req, res) => {
   }
 });
 
+// List all admins (principal admin only)
+router.get('/admins', auth, requirePrincipalAdmin, async (req, res) => {
+  try {
+    const admins = await User.find({ role: 'admin' }).select('email leetcodeUsername avatar role');
+    const principal = (process.env.ADMIN_EMAIL || '').toLowerCase();
+    const list = admins.map(u => ({
+      id: String(u._id),
+      email: u.email,
+      leetcodeUsername: u.leetcodeUsername,
+      avatar: u.avatar,
+      role: u.role,
+      isPrincipal: (u.email || '').toLowerCase() === principal,
+    }));
+    return res.json({ admins: list });
+  } catch (e) {
+    console.error('List admins error:', e);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Get current user's requests
 router.get('/requests/mine', auth, async (req, res) => {
   try {
