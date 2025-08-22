@@ -20,6 +20,9 @@ import Contest from './pages/Contest/Contest';
 import Stats from './pages/Stats/Stats';
 import Friends from './pages/Friends/Friends';
 import NotFound from './pages/NotFound';
+import CompetitionsList from './pages/Competitions/CompetitionsList';
+import CreateCompetition from './pages/Competitions/CreateCompetition';
+import CompetitionDetail from './pages/Competitions/CompetitionDetail';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -89,6 +92,21 @@ function App() {
                   <Route path="friends" element={
                     <ProtectedRoute>
                       <Friends />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="competitions" element={
+                    <ProtectedRoute>
+                      <CompetitionsList />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="competitions/create" element={
+                    <ProtectedRoute>
+                      <CreateCompetition />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="competitions/:id" element={
+                    <ProtectedRoute>
+                      <CompetitionDetail />
                     </ProtectedRoute>
                   } />
                 </Route>
