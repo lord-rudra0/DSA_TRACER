@@ -14,11 +14,22 @@ import {
   Mail
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useQuery } from 'react-query';
+import axios from 'axios';
 import clsx from 'clsx';
 
 const Sidebar = ({ mobile = false, onNavigate }) => {
   const location = useLocation();
   const { user } = useAuth();
+  const { data: pendingData } = useQuery(
+    ['sidebar:adminPending'],
+    async () => {
+      const res = await axios.get('/admin/requests/pending/count');
+      return res.data;
+    },
+    { enabled: user?.role === 'admin', refetchInterval: 20000 }
+  );
+  const pendingCount = user?.role === 'admin' ? (pendingData?.count || 0) : 0;
 
   const navigation = [
     { 
@@ -172,7 +183,7 @@ const Sidebar = ({ mobile = false, onNavigate }) => {
                   ? 'text-white' 
                   : 'text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300'
               )} />
-              <div className="flex-1">
+              <div className="flex-1 flex items-center justify-between gap-2">
                 <span className="block">{item.name}</span>
                 <span className={clsx(
                   'text-xs',
@@ -182,6 +193,11 @@ const Sidebar = ({ mobile = false, onNavigate }) => {
                 )}>
                   {item.description}
                 </span>
+                {item.href === '/admin' && pendingCount > 0 && (
+                  <span className="ml-2 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-xs font-semibold bg-error-500 text-white">
+                    {pendingCount}
+                  </span>
+                )}
               </div>
             </Link>
           );

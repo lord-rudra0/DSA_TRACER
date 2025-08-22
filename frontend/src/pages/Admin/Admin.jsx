@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 export default function Admin() {
   const qc = useQueryClient();
   const [grantRole, setGrantRole] = useState(false);
+  const [toast, setToast] = useState(null); // { type: 'success'|'error', msg: string }
 
   const { data, isLoading, isError } = useQuery(['admin:requests'], async () => {
     const res = await axios.get('/admin/requests');
@@ -16,7 +17,15 @@ export default function Admin() {
     const res = await axios.post(`/admin/requests/${id}/${action}${query}`);
     return res.data;
   }, {
-    onSuccess: () => qc.invalidateQueries(['admin:requests'])
+    onSuccess: (data, variables) => {
+      setToast({ type: 'success', msg: data?.message || `Request ${variables.action}d` });
+      qc.invalidateQueries(['admin:requests']);
+      qc.invalidateQueries(['admin:pendingCount']);
+      qc.invalidateQueries(['sidebar:adminPending']);
+    },
+    onError: (error) => {
+      setToast({ type: 'error', msg: error?.response?.data?.message || 'Action failed' });
+    }
   });
 
   if (isLoading) return <div className="p-6">Loading…</div>;
@@ -26,6 +35,17 @@ export default function Admin() {
 
   return (
     <div className="p-6 space-y-4">
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded shadow-lg ${toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}
+             onAnimationEnd={() => {}}>
+          <div className="flex items-center gap-3">
+            <span className="font-medium">{toast.type === 'success' ? 'Success' : 'Error'}</span>
+            <span className="opacity-90">•</span>
+            <span>{toast.msg}</span>
+            <button className="ml-3 text-white/80 hover:text-white" onClick={() => setToast(null)}>Dismiss</button>
+          </div>
+        </div>
+      )}
       <h1 className="text-2xl font-semibold">Admin Dashboard</h1>
       <p className="text-gray-600 dark:text-gray-300">Manage user requests to contact the principal admin.</p>
 
