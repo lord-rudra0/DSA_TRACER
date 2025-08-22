@@ -25,7 +25,6 @@ import CompetitionsList from './pages/Competitions/CompetitionsList';
 import CreateCompetition from './pages/Competitions/CreateCompetition';
 import CompetitionDetail from './pages/Competitions/CompetitionDetail';
 import Admin from './pages/Admin/Admin';
-import RequestAdmin from './pages/Admin/RequestAdmin';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -117,11 +116,7 @@ function App() {
                       <Admin />
                     </AdminRoute>
                   } />
-                  <Route path="admin/request" element={
-                    <ProtectedRoute>
-                      <RequestAdmin />
-                    </ProtectedRoute>
-                  } />
+                  {/* Contact Admin page removed */}
                 </Route>
                 
                 {/* 404 route */}

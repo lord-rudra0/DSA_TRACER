@@ -1,17 +1,16 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Flame } from 'lucide-react';
 
 // Props: challenge = { title, difficulty, link? }
 export default function DailyChallenge({ challenge }) {
   if (!challenge) return null;
-  const navigate = useNavigate();
   const diffColor =
     challenge.difficulty === 'Easy'
       ? 'text-success-600'
       : challenge.difficulty === 'Medium'
       ? 'text-warning-600'
       : 'text-error-600';
+  const externalHref = challenge.link || (challenge.titleSlug ? `https://leetcode.com/problems/${challenge.titleSlug}/` : undefined);
 
   return (
     <div className="card p-6 flex items-center justify-between">
@@ -29,28 +28,18 @@ export default function DailyChallenge({ challenge }) {
           </p>
         </div>
       </div>
-      <div className="flex items-center gap-3">
-        {challenge.titleSlug ? (
-          <button
-            type="button"
-            className="btn btn-secondary px-3 py-2"
-            onClick={() => navigate(`/problems/${challenge.titleSlug}`)}
-            aria-label="Open daily challenge in app"
-          >
-            Open in App
-          </button>
-        ) : null}
-        {challenge.link ? (
+      {externalHref && (
+        <div className="flex items-center gap-3">
           <a
             className="btn btn-primary px-3 py-2"
-            href={challenge.link}
+            href={externalHref}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
           >
-            Solve Now
+            Open in LeetCode
           </a>
-        ) : null}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

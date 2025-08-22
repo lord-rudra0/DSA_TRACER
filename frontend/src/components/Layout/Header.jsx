@@ -9,7 +9,8 @@ import {
   Monitor,
   Settings,
   LogOut,
-  User
+  User,
+  ExternalLink
 } from 'lucide-react';
 import { useQuery } from 'react-query';
 import axios from 'axios';
@@ -74,6 +75,18 @@ const Header = () => {
       refetchInterval: 20000,
     }
   );
+
+  // Daily challenge link (dynamic)
+  const { data: dailyData, isLoading: dailyLoading } = useQuery(
+    ['problems:dailyChallenge'],
+    async () => {
+      const res = await axios.get('/problems/daily/challenge');
+      return res.data;
+    },
+    { staleTime: 1000 * 60 * 30, retry: 1 }
+  );
+  const dailyUrl = dailyData?.link || (dailyData?.titleSlug ? `https://leetcode.com/problems/${dailyData.titleSlug}/` : 'https://leetcode.com/problemset/all/');
+
   const pendingCount = user?.role === 'admin' ? (pendingData?.count || 0) : 0;
 
   return (
@@ -115,6 +128,18 @@ const Header = () => {
 
             {/* Right side buttons */}
             <div className="flex items-center gap-2">
+              {/* Daily Challenge external link */}
+              <a
+                href={dailyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-primary hidden sm:inline-flex items-center gap-2 disabled:opacity-60"
+                title={dailyLoading ? 'Loading daily challenge…' : 'Open Daily Challenge on LeetCode'}
+                aria-disabled={dailyLoading}
+              >
+                <ExternalLink className="h-4 w-4" />
+                <span>{dailyLoading ? 'Daily…' : 'Daily Challenge'}</span>
+              </a>
               {/* Theme toggle */}
               <button
                 onClick={toggleTheme}

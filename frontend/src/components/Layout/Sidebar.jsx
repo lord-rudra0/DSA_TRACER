@@ -68,13 +68,6 @@ const Sidebar = ({ mobile = false, onNavigate }) => {
       icon: BarChart3,
       description: 'Detailed analytics'
     },
-    // Contact Admin link visible to all authenticated users
-    {
-      name: 'Contact Admin',
-      href: '/admin/request',
-      icon: Mail,
-      description: 'Send a request to admin'
-    },
   ];
 
   // Conditionally add Admin link for admin users
@@ -185,14 +178,6 @@ const Sidebar = ({ mobile = false, onNavigate }) => {
               )} />
               <div className="flex-1 flex items-center justify-between gap-2">
                 <span className="block">{item.name}</span>
-                <span className={clsx(
-                  'text-xs',
-                  isActive 
-                    ? 'text-primary-100' 
-                    : 'text-gray-500 dark:text-gray-400'
-                )}>
-                  {item.description}
-                </span>
                 {item.href === '/admin' && pendingCount > 0 && (
                   <span className="ml-2 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-xs font-semibold bg-error-500 text-white">
                     {pendingCount}
