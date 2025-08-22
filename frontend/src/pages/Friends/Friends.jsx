@@ -90,7 +90,7 @@ export default function Friends() {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by username or name"
+          placeholder="Search by LeetCode username or name"
           className="mt-1 w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 focus:outline-none focus:ring focus:border-indigo-500"
         />
       </div>
@@ -108,9 +108,9 @@ export default function Friends() {
               {results.map(u => (
                 <li key={u._id} className="flex items-center justify-between p-3">
                   <div className="flex items-center gap-3">
-                    <img src={u.avatar || `https://ui-avatars.com/api/?name=${u.username}`} alt="avatar" className="h-8 w-8 rounded-full" />
+                    <img src={u.avatar || `https://ui-avatars.com/api/?name=${u.leetcodeUsername}`} alt="avatar" className="h-8 w-8 rounded-full" />
                     <div>
-                      <div className="font-medium">{u.username}</div>
+                      <div className="font-medium">{u.leetcodeUsername}</div>
                       <div className="text-xs text-gray-500">Level {u.level} • {u.totalProblems} solved</div>
                     </div>
                   </div>
@@ -136,9 +136,9 @@ export default function Friends() {
                 {uniqueById([...(requests.incoming || []), ...(requests.outgoing || [])]).map(({ user: u }) => (
                   <li key={u._id} className="flex items-center justify-between p-3">
                     <div className="flex items-center gap-3">
-                      <img src={u.avatar || `https://ui-avatars.com/api/?name=${u.username}`} alt="avatar" className="h-8 w-8 rounded-full" />
+                      <img src={u.avatar || `https://ui-avatars.com/api/?name=${u.leetcodeUsername}`} alt="avatar" className="h-8 w-8 rounded-full" />
                       <div>
-                        <div className="font-medium">{u.username}</div>
+                        <div className="font-medium">{u.leetcodeUsername}</div>
                         <div className="text-xs text-gray-500">Level {u.level}</div>
                       </div>
                     </div>
@@ -168,9 +168,9 @@ export default function Friends() {
                   .map(f => (
                   <li key={f._id} className="flex items-center justify-between p-3">
                     <div className="flex items-center gap-3">
-                      <img src={f.avatar || `https://ui-avatars.com/api/?name=${f.username}`} alt="avatar" className="h-8 w-8 rounded-full" />
+                      <img src={f.avatar || `https://ui-avatars.com/api/?name=${f.leetcodeUsername}`} alt="avatar" className="h-8 w-8 rounded-full" />
                       <div>
-                        <div className="font-medium">{f.username}</div>
+                        <div className="font-medium">{f.leetcodeUsername}</div>
                         <div className="text-xs text-gray-500">Level {f.level} • {f.totalProblems} solved</div>
                       </div>
                     </div>

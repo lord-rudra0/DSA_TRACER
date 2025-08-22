@@ -102,7 +102,7 @@ const Dashboard = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold mb-2">
-              Welcome back, {user?.username}! 👋
+              Welcome back, {user?.leetcodeUsername}! 👋
             </h1>
             <p className="text-primary-100 mb-4">
               Ready to tackle some challenges today? Let's keep that streak going!

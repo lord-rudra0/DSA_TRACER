@@ -88,18 +88,18 @@ const Sidebar = ({ mobile = false, onNavigate }) => {
               <img
                 className="w-12 h-12 rounded-full"
                 src={user.avatar}
-                alt={user.username}
+                alt={user.leetcodeUsername}
               />
             ) : (
               <div className="w-12 h-12 bg-primary-600 rounded-full flex items-center justify-center">
                 <span className="text-lg font-bold text-white">
-                  {user.username?.charAt(0)?.toUpperCase()}
+                  {user.leetcodeUsername?.charAt(0)?.toUpperCase()}
                 </span>
               </div>
             )}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                {user.username}
+                {user.leetcodeUsername}
               </p>
               <p className="text-xs text-gray-500">Level {user.level}</p>
             </div>

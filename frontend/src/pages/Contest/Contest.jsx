@@ -31,7 +31,7 @@ export default function Contest() {
   const [stats, setStats] = useState(null);
   const { user } = useAuth();
   const [history, setHistory] = useState({ list: [], loading: false, error: '' });
-  const [overview, setOverview] = useState(null); // from /:username/contest (rankingInfo + totals)
+  const [overview, setOverview] = useState(null); // from /:leetcodeUsername/contest (rankingInfo + totals)
   const [discuss, setDiscuss] = useState({ topics: [], loading: false, error: '' });
   const [topicDrawer, setTopicDrawer] = useState({ open: false, topic: null, comments: [], loading: false, error: '' });
 
@@ -134,7 +134,9 @@ export default function Contest() {
           ? json.recentHistory
           : (Array.isArray(json.contestHistory) ? json.contestHistory : []);
 
-        setOverview(json.username ? json : null);
+        // Accept overview objects that include leetcodeUsername (primary) or legacy username (fallback)
+        const hasOverviewUser = !!(json.leetcodeUsername || json.username || (json.user && json.user.leetcodeUsername));
+        setOverview(hasOverviewUser ? json : null);
         setHistory({ list, loading: false, error: '' });
       } catch (e) {
         if (!cancelled) setHistory({ list: [], loading: false, error: e.message || 'Failed to load history' });
@@ -294,7 +296,7 @@ export default function Contest() {
                         {topicDrawer.comments.slice(0, 20).map((c, idx) => (
                           <li key={idx} className="text-sm">
                             <div className="text-gray-800 dark:text-gray-200" dangerouslySetInnerHTML={{ __html: c?.content || '' }} />
-                            <div className="text-xs text-gray-500 mt-1">by {c?.author?.username || 'Anonymous'}</div>
+                            <div className="text-xs text-gray-500 mt-1">by {c?.author?.leetcodeUsername || c?.author?.username || 'Anonymous'}</div>
                           </li>
                         ))}
                       </ul>

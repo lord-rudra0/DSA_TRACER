@@ -144,7 +144,7 @@ router.get('/user', auth, async (req, res) => {
 
     res.json({
       user: {
-        username: user.username,
+        leetcodeUsername: user.leetcodeUsername,
         xp: user.xp,
         level: user.level,
         totalProblems: user.totalProblems,
@@ -307,7 +307,7 @@ router.get('/compare/:user1/:user2', async (req, res) => {
     const { user1, user2 } = req.params;
     
     const users = await User.find({
-      username: { $in: [user1, user2] }
+      leetcodeUsername: { $in: [user1, user2] }
     }).select('-password -email');
 
     if (users.length !== 2) {
@@ -318,7 +318,7 @@ router.get('/compare/:user1/:user2', async (req, res) => {
     for (const user of users) {
       if (!user.settings.privacy.showStats) {
         return res.status(403).json({ 
-          message: `${user.username}'s statistics are private` 
+          message: `${user.leetcodeUsername}'s statistics are private` 
         });
       }
     }
@@ -382,10 +382,10 @@ router.get('/compare/:user1/:user2', async (req, res) => {
       comparison: submissionComparison,
       summary: {
         winner: {
-          totalProblems: users[0].totalProblems > users[1].totalProblems ? users[0].username : users[1].username,
-          xp: users[0].xp > users[1].xp ? users[0].username : users[1].username,
-          streak: users[0].maxStreak > users[1].maxStreak ? users[0].username : users[1].username,
-          contests: users[0].contestRating > users[1].contestRating ? users[0].username : users[1].username
+          totalProblems: users[0].totalProblems > users[1].totalProblems ? users[0].leetcodeUsername : users[1].leetcodeUsername,
+          xp: users[0].xp > users[1].xp ? users[0].leetcodeUsername : users[1].leetcodeUsername,
+          streak: users[0].maxStreak > users[1].maxStreak ? users[0].leetcodeUsername : users[1].leetcodeUsername,
+          contests: users[0].contestRating > users[1].contestRating ? users[0].leetcodeUsername : users[1].leetcodeUsername
         }
       },
       lastUpdated: new Date()

@@ -163,18 +163,18 @@ const Header = () => {
                     <img
                       className="h-8 w-8 rounded-full"
                       src={user.avatar}
-                      alt={user.username}
+                      alt={user.leetcodeUsername}
                     />
                   ) : (
                     <div className="h-8 w-8 bg-primary-600 rounded-full flex items-center justify-center">
                       <span className="text-sm font-medium text-white">
-                        {user?.username?.charAt(0)?.toUpperCase()}
+                        {user?.leetcodeUsername?.charAt(0)?.toUpperCase()}
                       </span>
                     </div>
                   )}
                   <div className="hidden sm:block text-left">
                     <p className="text-sm font-medium text-gray-900 dark:text-white">
-                      {user?.username}
+                      {user?.leetcodeUsername}
                     </p>
                     <p className="text-xs text-gray-500">Level {user?.level}</p>
                   </div>
@@ -185,7 +185,7 @@ const Header = () => {
                   <div className="absolute right-0 mt-2 w-48 card z-50 shadow-lg">
                     <div className="py-1">
                       <Link
-                        to={`/profile/${user?.username}`}
+                        to={`/profile/${user?.leetcodeUsername}`}
                         className="flex items-center px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                         onClick={() => setShowUserMenu(false)}
                       >

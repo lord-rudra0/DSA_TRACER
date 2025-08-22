@@ -12,21 +12,19 @@ const router = express.Router();
 // Register
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password, firstName, lastName, leetcodeUsername } = req.body;
+    const { email, password, firstName, lastName, leetcodeUsername } = req.body;
 
     // Validation
-    if (!username || !email || !password || !leetcodeUsername) {
-      return res.status(400).json({ message: 'Please provide all required fields including LeetCode username' });
+    if (!email || !password || !leetcodeUsername) {
+      return res.status(400).json({ message: 'Please provide email, password, and LeetCode username' });
     }
 
     // Check if user exists
-    const existingUser = await User.findOne({ 
-      $or: [{ email }, { username }] 
-    });
+    const existingUser = await User.findOne({ $or: [{ email }, { leetcodeUsername }] });
 
     if (existingUser) {
-      return res.status(400).json({ 
-        message: existingUser.email === email ? 'Email already exists' : 'Username already exists'
+      return res.status(400).json({
+        message: existingUser.email === email ? 'Email already exists' : 'LeetCode username already exists'
       });
     }
 
@@ -36,7 +34,6 @@ router.post('/register', async (req, res) => {
 
     // Create user
     const user = new User({
-      username,
       email,
       password: hashedPassword,
       firstName,
@@ -58,7 +55,6 @@ router.post('/register', async (req, res) => {
       token,
       user: {
         id: user._id,
-        username: user.username,
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -180,11 +176,11 @@ router.post('/login', async (req, res) => {
       token,
       user: {
         id: user._id,
-        username: user.username,
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
         avatar: user.avatar,
+        leetcodeUsername: user.leetcodeUsername,
         xp: user.xp,
         level: user.level,
         currentStreak: user.currentStreak
@@ -201,12 +197,11 @@ router.get('/me', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
       .select('-password')
-      .populate('friends.user', 'username avatar xp level');
+      .populate('friends.user', 'leetcodeUsername avatar xp level');
 
     res.json({
       user: {
         id: user._id,
-        username: user.username,
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -245,7 +240,7 @@ router.put('/profile', auth, async (req, res) => {
     const updates = req.body || {};
     const allowedUpdates = [
       'firstName', 'lastName', 'bio', 'location', 'website',
-      'preferredLanguages', 'focusAreas', 'avatar', 'username', 'email'
+      'preferredLanguages', 'focusAreas', 'avatar', 'email'
     ];
 
     // Filter allowed updates (leetcodeUsername is intentionally excluded here)
@@ -256,13 +251,7 @@ router.put('/profile', auth, async (req, res) => {
       }
     });
 
-    // Uniqueness checks for username and email if they are being updated
-    if (filteredUpdates.username) {
-      const exists = await User.findOne({ username: filteredUpdates.username, _id: { $ne: req.user._id } });
-      if (exists) {
-        return res.status(400).json({ message: 'Username already exists' });
-      }
-    }
+    // Uniqueness check for email if it is being updated
     if (filteredUpdates.email) {
       const exists = await User.findOne({ email: filteredUpdates.email, _id: { $ne: req.user._id } });
       if (exists) {

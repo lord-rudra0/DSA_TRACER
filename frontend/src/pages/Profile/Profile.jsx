@@ -4,7 +4,7 @@ import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function Profile() {
-  const { username } = useParams();
+  const { leetcodeUsername } = useParams();
   const { user: me, updateProfile } = useAuth();
   const [profile, setProfile] = useState(null);
   const [stats, setStats] = useState(null);
@@ -13,7 +13,7 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
 
-  const isSelf = useMemo(() => !username || username === me?.username, [username, me?.username]);
+  const isSelf = useMemo(() => !leetcodeUsername || leetcodeUsername === me?.leetcodeUsername, [leetcodeUsername, me?.leetcodeUsername]);
 
   useEffect(() => {
     let canceled = false;
@@ -27,7 +27,7 @@ export default function Profile() {
           setProfile(data.user);
           setStats(data.stats);
         } else {
-          const { data } = await axios.get(`/users/profile/${username}`);
+          const { data } = await axios.get(`/users/profile/${leetcodeUsername}`);
           if (canceled) return;
           setProfile(data.user);
           setStats(data.stats || {});
@@ -39,7 +39,7 @@ export default function Profile() {
       }
     })();
     return () => { canceled = true; };
-  }, [isSelf, username]);
+  }, [isSelf, leetcodeUsername]);
 
   if (loading) {
     return (
@@ -63,7 +63,7 @@ export default function Profile() {
 
   if (!profile) return null;
 
-  const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || profile.username;
+  const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || profile.leetcodeUsername;
 
   return (
     <div className="p-6">
@@ -71,14 +71,14 @@ export default function Profile() {
       <div className="rounded-xl bg-white dark:bg-gray-900 shadow-sm border border-gray-200 dark:border-gray-800 p-6">
         <div className="flex items-start gap-4">
           <img
-            src={profile.avatar || `https://ui-avatars.com/api/?name=${profile.username}`}
+            src={profile.avatar || `https://ui-avatars.com/api/?name=${profile.leetcodeUsername}`}
             alt="avatar"
             className="h-20 w-20 rounded-full border border-gray-200 dark:border-gray-700 object-cover"
           />
           <div className="flex-1">
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl font-semibold">{fullName}</h1>
-              <span className="text-gray-500">@{profile.username}</span>
+              <span className="text-gray-500">@{profile.leetcodeUsername}</span>
               {profile.location && (
                 <span className="text-sm text-gray-500">• {profile.location}</span>
               )}
@@ -102,7 +102,6 @@ export default function Profile() {
         <section className="rounded-xl bg-white dark:bg-gray-900 shadow-sm border border-gray-200 dark:border-gray-800 p-6">
           <h2 className="text-lg font-semibold">Profile Details</h2>
           <div className="mt-4 space-y-3 text-sm">
-            <Detail label="Username" value={profile.username} />
             <Detail label="Email" value={profile.email || '—'} />
             <Detail label="LeetCode Username" value={profile.leetcodeUsername || '—'} />
             <Detail label="First Name" value={profile.firstName || '—'} />
@@ -121,7 +120,7 @@ export default function Profile() {
                   setSaving(true);
                   setSaveMsg('');
                   // Ensure leetcodeUsername is not updated (remove if present)
-                  const { leetcodeUsername, ...rest } = payload || {};
+                  const { leetcodeUsername, username, ...rest } = payload || {};
                   const res = await updateProfile(rest);
                   if (res?.success) {
                     // Refresh data
@@ -209,10 +208,10 @@ export default function Profile() {
                 .slice(0, 6)
                 .map((f, idx) => (
                 <div key={idx} className="flex items-center gap-3 p-3 rounded border border-gray-200 dark:border-gray-800">
-                  <img src={f.user?.avatar || `https://ui-avatars.com/api/?name=${f.user?.username || ''}`}
+                  <img src={f.user?.avatar || `https://ui-avatars.com/api/?name=${f.user?.leetcodeUsername || ''}`}
                        className="h-8 w-8 rounded-full" alt="friend" />
                   <div>
-                    <div className="font-medium">{f.user?.username || f.username}</div>
+                    <div className="font-medium">{f.user?.leetcodeUsername || f.leetcodeUsername}</div>
                     <div className="text-xs text-gray-500">Level {f.user?.level ?? f.level}</div>
                   </div>
                 </div>
@@ -238,7 +237,6 @@ function Detail({ label, value }) {
 
 function EditForm({ profile, onSubmit, saving }) {
   const [form, setForm] = useState({
-    username: profile.username || '',
     email: profile.email || '',
     firstName: profile.firstName || '',
     lastName: profile.lastName || '',
@@ -251,7 +249,6 @@ function EditForm({ profile, onSubmit, saving }) {
 
   useEffect(() => {
     setForm({
-      username: profile.username || '',
       email: profile.email || '',
       firstName: profile.firstName || '',
       lastName: profile.lastName || '',
@@ -276,8 +273,8 @@ function EditForm({ profile, onSubmit, saving }) {
   return (
     <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <LabeledInput label="Username" name="username" value={form.username} onChange={handleChange} helper="Changing your username updates how others find your profile" />
         <LabeledInput label="Email" type="email" name="email" value={form.email} onChange={handleChange} />
+        <LabeledInput label="LeetCode Username" name="leetcodeUsername" value={form.leetcodeUsername} onChange={handleChange} disabled helper="Your public handle" />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <LabeledInput label="First Name" name="firstName" value={form.firstName} onChange={handleChange} />
@@ -289,7 +286,6 @@ function EditForm({ profile, onSubmit, saving }) {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <LabeledInput label="Avatar URL" name="avatar" value={form.avatar} onChange={handleChange} placeholder="https://..." />
-        <LabeledInput label="LeetCode Username" name="leetcodeUsername" value={form.leetcodeUsername} onChange={handleChange} disabled helper="Not editable here" />
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">Bio</label>

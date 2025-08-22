@@ -3,8 +3,8 @@ import mongoose from 'mongoose';
 const userSchema = new mongoose.Schema({
   username: {
     type: String,
-    required: true,
-    unique: true,
+    required: false,
+    unique: false,
     trim: true,
     minlength: 3,
     maxlength: 30
@@ -30,7 +30,8 @@ const userSchema = new mongoose.Schema({
   leetcodeUsername: {
     type: String,
     trim: true,
-    default: ''
+    required: true,
+    unique: true
   },
   // OAuth fields
   googleId: String,
@@ -211,7 +212,7 @@ userSchema.index({ lastActive: -1 });
 
 // Virtual for full name
 userSchema.virtual('fullName').get(function() {
-  return `${this.firstName || ''} ${this.lastName || ''}`.trim() || this.username;
+  return `${this.firstName || ''} ${this.lastName || ''}`.trim() || this.leetcodeUsername;
 });
 
 // Method to calculate level from XP

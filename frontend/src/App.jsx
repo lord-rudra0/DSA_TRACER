@@ -66,7 +66,7 @@ function App() {
                       <Leaderboard />
                     </ProtectedRoute>
                   } />
-                  <Route path="profile/:username?" element={
+                  <Route path="profile/:leetcodeUsername?" element={
                     <ProtectedRoute>
                       <Profile />
                     </ProtectedRoute>

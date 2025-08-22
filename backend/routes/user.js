@@ -319,14 +319,14 @@ router.get('/dashboard', auth, async (req, res) => {
   }
 });
 
-// Get user profile by username
-router.get('/profile/:username', async (req, res) => {
+// Get user profile by LeetCode username
+router.get('/profile/:leetcodeUsername', async (req, res) => {
   try {
-    const { username } = req.params;
+    const { leetcodeUsername } = req.params;
     
-    const user = await User.findOne({ username })
+    const user = await User.findOne({ leetcodeUsername })
       .select('-password -email')
-      .populate('friends.user', 'username avatar xp level');
+      .populate('friends.user', 'leetcodeUsername avatar xp level');
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -452,7 +452,7 @@ router.post('/friends/:action/:userId', auth, async (req, res) => {
 router.get('/friends', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
-      .populate('friends.user', 'username avatar xp level totalProblems currentStreak lastActive');
+      .populate('friends.user', 'leetcodeUsername avatar xp level totalProblems currentStreak lastActive');
 
     const friends = user.friends.map(friend => ({
       ...friend.user.toObject(),
@@ -470,7 +470,7 @@ router.get('/friends', auth, async (req, res) => {
 // Get pending friend requests (incoming and outgoing)
 router.get('/friends/requests', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).populate('friends.user', 'username avatar xp level');
+    const user = await User.findById(req.user._id).populate('friends.user', 'leetcodeUsername avatar xp level');
     const incoming = [];
     const outgoing = [];
 
@@ -509,7 +509,7 @@ router.get('/search', auth, async (req, res) => {
         { _id: { $ne: req.user._id } },
         {
           $or: [
-            { username: { $regex: query, $options: 'i' } },
+            { leetcodeUsername: { $regex: query, $options: 'i' } },
             { firstName: { $regex: query, $options: 'i' } },
             { lastName: { $regex: query, $options: 'i' } }
           ]
@@ -517,7 +517,7 @@ router.get('/search', auth, async (req, res) => {
       ]
     };
 
-    const projection = 'username firstName lastName avatar xp level totalProblems lastActive friends';
+    const projection = 'leetcodeUsername firstName lastName avatar xp level totalProblems lastActive friends';
     const results = await User.find(filter, projection).limit(parseInt(limit)).lean();
 
     // Build status map from current user's perspective
@@ -527,7 +527,7 @@ router.get('/search', auth, async (req, res) => {
 
     const users = results.map(u => ({
       _id: u._id,
-      username: u.username,
+      leetcodeUsername: u.leetcodeUsername,
       firstName: u.firstName,
       lastName: u.lastName,
       avatar: u.avatar,

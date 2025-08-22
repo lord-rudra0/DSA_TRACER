@@ -5,7 +5,6 @@ import { useAuth } from '../../contexts/AuthContext';
 
 const Register = () => {
   const [formData, setFormData] = useState({
-    username: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -60,7 +59,6 @@ const Register = () => {
     setError('');
 
     const result = await register({
-      username: formData.username,
       email: formData.email,
       password: formData.password,
       firstName: formData.firstName,
@@ -195,22 +193,7 @@ const Register = () => {
                 </div>
               </div>
 
-              {/* Username */}
-              <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Username
-                </label>
-                <input
-                  id="username"
-                  name="username"
-                  type="text"
-                  required
-                  value={formData.username}
-                  onChange={handleChange}
-                  className="mt-1 input"
-                  placeholder="johndoe"
-                />
-              </div>
+              {/* Username removed: using LeetCode username as handle */}
 
               {/* LeetCode Username (required) */}
               <div>

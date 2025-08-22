@@ -83,13 +83,13 @@ export default function Leaderboard() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {topPerformers.map((u, idx) => (
-              <div key={u._id || u.username} className="border rounded-lg p-4 flex items-center gap-4 bg-white dark:bg-gray-900">
+              <div key={u._id || u.leetcodeUsername} className="border rounded-lg p-4 flex items-center gap-4 bg-white dark:bg-gray-900">
                 <div className="text-2xl font-bold w-10 text-center">#{idx + 1}</div>
-                <img src={u.avatar || `https://api.dicebear.com/8.x/identicon/svg?seed=${encodeURIComponent(u.username)}`}
-                     alt={u.username}
+                <img src={u.avatar || `https://api.dicebear.com/8.x/identicon/svg?seed=${encodeURIComponent(u.leetcodeUsername)}`}
+                     alt={u.leetcodeUsername}
                      className="w-12 h-12 rounded-full object-cover" />
                 <div className="flex-1">
-                  <div className="font-medium">{u.username}</div>
+                  <div className="font-medium">{u.fullName || u.leetcodeUsername}</div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">XP: {u.xp ?? 0} • Solved: {u.totalProblems ?? 0}</div>
                 </div>
               </div>
@@ -124,12 +124,12 @@ export default function Leaderboard() {
                   <tr key={u._id} className="border-t border-gray-100 dark:border-gray-800">
                     <td className="px-4 py-3">{u.rank}</td>
                     <td className="px-4 py-3 flex items-center gap-3">
-                      <img src={u.avatar || `https://api.dicebear.com/8.x/identicon/svg?seed=${encodeURIComponent(u.username)}`}
-                           alt={u.username}
+                      <img src={u.avatar || `https://api.dicebear.com/8.x/identicon/svg?seed=${encodeURIComponent(u.leetcodeUsername)}`}
+                           alt={u.leetcodeUsername}
                            className="w-8 h-8 rounded-full object-cover" />
                       <div>
-                        <div className="font-medium">{u.fullName || u.username}</div>
-                        <div className="text-xs text-gray-500">@{u.username}</div>
+                        <div className="font-medium">{u.fullName || u.leetcodeUsername}</div>
+                        <div className="text-xs text-gray-500">@{u.leetcodeUsername}</div>
                       </div>
                       {u.isCurrentUser && (
                         <span className="ml-2 text-xs px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200">You</span>

@@ -53,7 +53,7 @@ router.get('/', optionalAuth, async (req, res) => {
       { $match: matchStage },
       {
         $project: {
-          username: 1,
+          leetcodeUsername: 1,
           firstName: 1,
           lastName: 1,
           avatar: 1,
@@ -83,7 +83,7 @@ router.get('/', optionalAuth, async (req, res) => {
     const rankedLeaderboard = leaderboard.map((user, index) => ({
       ...user,
       rank: skip + index + 1,
-      fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username,
+      fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.leetcodeUsername,
       isCurrentUser: req.user ? user._id.toString() === req.user._id.toString() : false
     }));
 
@@ -138,7 +138,7 @@ router.get('/friends', optionalAuth, async (req, res) => {
 
     const user = await User.findById(req.user._id).populate({
       path: 'friends.user',
-      select: 'username firstName lastName avatar xp level totalProblems easySolved mediumSolved hardSolved currentStreak maxStreak contestRating badges',
+      select: 'leetcodeUsername firstName lastName avatar xp level totalProblems easySolved mediumSolved hardSolved currentStreak maxStreak contestRating badges',
       match: { 'friends.status': 'accepted' }
     });
 
@@ -152,7 +152,7 @@ router.get('/friends', optionalAuth, async (req, res) => {
     // Add current user to the list
     friends.push({
       _id: user._id,
-      username: user.username,
+      leetcodeUsername: user.leetcodeUsername,
       firstName: user.firstName,
       lastName: user.lastName,
       avatar: user.avatar,
@@ -176,7 +176,7 @@ router.get('/friends', optionalAuth, async (req, res) => {
     const rankedFriends = friends.map((friend, index) => ({
       ...friend,
       rank: index + 1,
-      fullName: `${friend.firstName || ''} ${friend.lastName || ''}`.trim() || friend.username
+      fullName: `${friend.firstName || ''} ${friend.lastName || ''}`.trim() || friend.leetcodeUsername
     }));
 
     res.json({
@@ -219,7 +219,7 @@ router.get('/stats', async (req, res) => {
       { $limit: 3 },
       {
         $project: {
-          username: 1,
+          leetcodeUsername: 1,
           avatar: 1,
           xp: 1,
           totalProblems: 1
@@ -257,7 +257,7 @@ router.get('/all', optionalAuth, async (req, res) => {
       page = 1,
       limit = 50,
       search = '',
-      sortBy = 'username', // username, xp, totalProblems, contestRating, lastActive
+      sortBy = 'leetcodeUsername', // leetcodeUsername, xp, totalProblems, contestRating, lastActive
       order = 'asc' // asc | desc
     } = req.query;
 
@@ -267,7 +267,7 @@ router.get('/all', optionalAuth, async (req, res) => {
     if (search) {
       const s = search.trim();
       filter.$or = [
-        { username: { $regex: s, $options: 'i' } },
+        { leetcodeUsername: { $regex: s, $options: 'i' } },
         { firstName: { $regex: s, $options: 'i' } },
         { lastName: { $regex: s, $options: 'i' } }
       ];
@@ -278,11 +278,11 @@ router.get('/all', optionalAuth, async (req, res) => {
     if (['xp', 'totalProblems', 'contestRating', 'lastActive'].includes(sortBy)) {
       sort[sortBy] = dir;
     } else {
-      sort.username = dir;
+      sort.leetcodeUsername = dir;
     }
 
     const projection = {
-      username: 1,
+      leetcodeUsername: 1,
       firstName: 1,
       lastName: 1,
       avatar: 1,
@@ -305,7 +305,7 @@ router.get('/all', optionalAuth, async (req, res) => {
 
     const rows = users.map(u => ({
       ...u,
-      fullName: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username,
+      fullName: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.leetcodeUsername,
       isCurrentUser: req.user ? u._id.toString() === req.user._id.toString() : false
     }));
 
