@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 
 export default function Admin() {
   const qc = useQueryClient();
+  const [grantRole, setGrantRole] = useState(false);
 
   const { data, isLoading, isError } = useQuery(['admin:requests'], async () => {
     const res = await axios.get('/admin/requests');
@@ -11,7 +12,8 @@ export default function Admin() {
   });
 
   const actMutation = useMutation(async ({ id, action }) => {
-    const res = await axios.post(`/admin/requests/${id}/${action}`);
+    const query = grantRole && action === 'approve' ? '?grantRole=true' : '';
+    const res = await axios.post(`/admin/requests/${id}/${action}${query}`);
     return res.data;
   }, {
     onSuccess: () => qc.invalidateQueries(['admin:requests'])
@@ -26,6 +28,13 @@ export default function Admin() {
     <div className="p-6 space-y-4">
       <h1 className="text-2xl font-semibold">Admin Dashboard</h1>
       <p className="text-gray-600 dark:text-gray-300">Manage user requests to contact the principal admin.</p>
+
+      <div className="flex items-center gap-2 p-3 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+        <input id="grantRole" type="checkbox" className="accent-primary-600" checked={grantRole} onChange={(e) => setGrantRole(e.target.checked)} />
+        <label htmlFor="grantRole" className="text-sm text-gray-700 dark:text-gray-300">
+          On approve, also grant admin if user email matches ADMIN_EMAIL policy
+        </label>
+      </div>
 
       <div className="divide-y rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
         {requests.length === 0 && (

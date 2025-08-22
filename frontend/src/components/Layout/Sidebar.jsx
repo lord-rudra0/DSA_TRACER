@@ -9,7 +9,9 @@ import {
   BarChart3, 
   Award, 
   Flame,
-  Code
+  Code,
+  Shield,
+  Mail
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import clsx from 'clsx';
@@ -54,8 +56,25 @@ const Sidebar = ({ mobile = false, onNavigate }) => {
       href: '/stats', 
       icon: BarChart3,
       description: 'Detailed analytics'
-    }
+    },
+    // Contact Admin link visible to all authenticated users
+    {
+      name: 'Contact Admin',
+      href: '/admin/request',
+      icon: Mail,
+      description: 'Send a request to admin'
+    },
   ];
+
+  // Conditionally add Admin link for admin users
+  if (user?.role === 'admin') {
+    navigation.push({
+      name: 'Admin',
+      href: '/admin',
+      icon: Shield,
+      description: 'Admin dashboard'
+    });
+  }
 
   const handleNavClick = () => {
     if (mobile && onNavigate) {

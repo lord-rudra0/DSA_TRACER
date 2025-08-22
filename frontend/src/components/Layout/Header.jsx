@@ -11,6 +11,8 @@ import {
   LogOut,
   User
 } from 'lucide-react';
+import { useQuery } from 'react-query';
+import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Link } from 'react-router-dom';
@@ -59,6 +61,20 @@ const Header = () => {
       read: true
     }
   ];
+
+  // Admin pending requests count
+  const { data: pendingData } = useQuery(
+    ['admin:pendingCount'],
+    async () => {
+      const res = await axios.get('/admin/requests/pending/count');
+      return res.data;
+    },
+    {
+      enabled: user?.role === 'admin',
+      refetchInterval: 20000,
+    }
+  );
+  const pendingCount = user?.role === 'admin' ? (pendingData?.count || 0) : 0;
 
   return (
     <>
@@ -115,7 +131,7 @@ const Header = () => {
                   onClick={() => setShowNotifications(!showNotifications)}
                 >
                   <Bell className="h-5 w-5" />
-                  {mockNotifications.some(n => !n.read) && (
+                  {(mockNotifications.some(n => !n.read) || pendingCount > 0) && (
                     <span className="absolute -top-1 -right-1 h-3 w-3 bg-error-500 rounded-full"></span>
                   )}
                 </button>
@@ -126,6 +142,17 @@ const Header = () => {
                     <div className="p-4">
                       <h3 className="text-lg font-semibold mb-3">Notifications</h3>
                       <div className="space-y-3 max-h-64 overflow-y-auto">
+                        {user?.role === 'admin' && (
+                          <div className={`p-3 rounded-lg border ${pendingCount > 0 ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800' : 'bg-gray-50 dark:bg-gray-700'}`}>
+                            <h4 className="font-medium text-sm">Admin Requests</h4>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                              {pendingCount} pending request{pendingCount === 1 ? '' : 's'}
+                            </p>
+                            <div className="mt-2">
+                              <Link to="/admin" className="text-xs text-primary-600 hover:text-primary-700">Go to Admin</Link>
+                            </div>
+                          </div>
+                        )}
                         {mockNotifications.map((notification) => (
                           <div
                             key={notification.id}
