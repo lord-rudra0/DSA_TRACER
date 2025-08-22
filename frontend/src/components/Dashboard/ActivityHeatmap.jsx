@@ -1,28 +1,26 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 // Expects prop: data = array of { date: string, count: number }
 export default function ActivityHeatmap({ data = [] }) {
-  // Very simple placeholder: render last 14 days as boxes
-  const days = 14;
-  const today = new Date();
-  const series = Array.from({ length: days }).map((_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() - (days - 1 - i));
-    const key = d.toISOString().slice(0, 10);
-    const entry = data.find((x) => (x.date || '').slice(0, 10) === key);
-    const count = entry?.count || 0;
-    const intensity = count === 0 ? 'bg-gray-200 dark:bg-gray-700' : count < 3 ? 'bg-success-200 dark:bg-success-800' : count < 6 ? 'bg-success-400' : 'bg-success-600';
-    return { key, count, intensity };
-  });
+  const chartData = useMemo(() => {
+    // Keep chronological order; limit to last 90 points for readability
+    const sorted = [...(data || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const limited = sorted.slice(-90);
+    return limited.map((d) => ({ date: (d.date || '').slice(5), count: d.count || 0 })); // show MM-DD
+  }, [data]);
 
   return (
-    <div>
-      <div className="grid grid-cols-14 gap-1">
-        {series.map((d) => (
-          <div key={d.key} className={`w-4 h-4 rounded ${d.intensity}`} title={`${d.key}: ${d.count}`} />
-        ))}
-      </div>
-      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Activity over last {days} days</p>
+    <div className="h-64">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
+          <XAxis dataKey="date" tick={{ fontSize: 10 }} interval={chartData.length > 30 ? Math.floor(chartData.length / 12) : 0} />
+          <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+          <Tooltip />
+          <Bar dataKey="count" fill="#22c55e" name="Accepted" />
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 }

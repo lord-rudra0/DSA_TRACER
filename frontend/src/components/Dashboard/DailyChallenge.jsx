@@ -1,9 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Flame } from 'lucide-react';
 
 // Props: challenge = { title, difficulty, link? }
 export default function DailyChallenge({ challenge }) {
   if (!challenge) return null;
+  const navigate = useNavigate();
   const diffColor =
     challenge.difficulty === 'Easy'
       ? 'text-success-600'
@@ -27,16 +29,28 @@ export default function DailyChallenge({ challenge }) {
           </p>
         </div>
       </div>
-      {challenge.link ? (
-        <a
-          className="btn btn-primary px-3 py-2"
-          href={challenge.link}
-          target="_blank"
-          rel="noreferrer"
-        >
-          Solve Now
-        </a>
-      ) : null}
+      <div className="flex items-center gap-3">
+        {challenge.titleSlug ? (
+          <button
+            type="button"
+            className="btn btn-secondary px-3 py-2"
+            onClick={() => navigate(`/problems/${challenge.titleSlug}`)}
+            aria-label="Open daily challenge in app"
+          >
+            Open in App
+          </button>
+        ) : null}
+        {challenge.link ? (
+          <a
+            className="btn btn-primary px-3 py-2"
+            href={challenge.link}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Solve Now
+          </a>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from 'react-query';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Search, Filter, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 
 // Difficulty UI helpers
@@ -14,13 +14,35 @@ const DIFF_COLORS = {
 const LIMIT = 20;
 
 export default function Problems() {
+  const location = useLocation();
   // Filters & state
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [difficulty, setDifficulty] = useState(''); // '', 'Easy', 'Medium', 'Hard'
   const [status, setStatus] = useState(''); // '', 'solved', 'unsolved'
   const [selectedTags, setSelectedTags] = useState([]); // array of tag names
+  const [language, setLanguage] = useState(''); // e.g., 'JavaScript', 'C++'
   const [sort, setSort] = useState('relevance'); // 'relevance' | 'difficulty' | 'acceptance'
+
+  // Initialize from URL
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const qPage = parseInt(params.get('page') || '1');
+    const qSearch = params.get('search') || '';
+    const qDifficulty = params.get('difficulty') || '';
+    const qStatus = params.get('status') || '';
+    const qTags = params.get('tags') || '';
+    const qLanguage = params.get('language') || '';
+    const qSort = params.get('sort') || 'relevance';
+
+    setPage(Number.isFinite(qPage) && qPage > 0 ? qPage : 1);
+    setSearch(qSearch);
+    setDifficulty(qDifficulty);
+    setStatus(qStatus);
+    setSelectedTags(qTags ? qTags.split(',').filter(Boolean) : []);
+    setLanguage(qLanguage);
+    setSort(qSort);
+  }, [location.search]);
 
   // Build query params
   const queryParams = useMemo(() => {
@@ -31,6 +53,7 @@ export default function Problems() {
     if (difficulty) params.set('difficulty', difficulty);
     if (status) params.set('status', status);
     if (selectedTags.length) params.set('tags', selectedTags.join(','));
+    if (language) params.set('language', language);
     if (sort && sort !== 'relevance') params.set('sort', sort);
     return params.toString();
   }, [page, search, difficulty, status, selectedTags, sort]);

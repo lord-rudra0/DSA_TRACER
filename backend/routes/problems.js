@@ -17,7 +17,8 @@ router.get('/', optionalAuth, async (req, res) => {
       difficulty,
       tags,
       search,
-      status // solved, unsolved, attempted
+      status, // solved, unsolved, attempted
+      language // filter by user's accepted submissions language (requires auth)
     } = req.query;
 
     // If external API base is configured, prefer proxying external list (no local DB dependency)
@@ -84,10 +85,17 @@ router.get('/', optionalAuth, async (req, res) => {
 
         // If authenticated, compute solved set: hybrid (DB + external recent)
         let acceptedIds = null;
+        let acceptedByLang = null;
         if (req.user) {
-          acceptedIds = await Submission.find({ user: req.user._id, status: 'Accepted' })
+          const baseQuery = { user: req.user._id, status: 'Accepted' };
+          acceptedIds = await Submission.find(baseQuery)
             .populate('problem', 'titleSlug')
             .then(rows => new Set(rows.map(r => r.problem?.titleSlug).filter(Boolean)));
+          if (language) {
+            acceptedByLang = await Submission.find({ ...baseQuery, language })
+              .populate('problem', 'titleSlug')
+              .then(rows => new Set(rows.map(r => r.problem?.titleSlug).filter(Boolean)));
+          }
 
           // Try to augment with external recent Accepted slugs
           try {
@@ -115,6 +123,16 @@ router.get('/', optionalAuth, async (req, res) => {
         if (status && req.user && acceptedIds) {
           if (status === 'solved') results = results.filter(p => p.solved);
           if (status === 'unsolved') results = results.filter(p => !p.solved);
+        }
+
+        // Apply language filter (requires auth)
+        if (language && req.user && acceptedIds) {
+          // If we computed acceptedByLang, use it to filter results
+          if (acceptedByLang) {
+            results = results.filter(p => acceptedByLang.has(p.titleSlug));
+          } else {
+            // Fallback: keep results (cannot filter without data)
+          }
         }
 
         const hasNext = results.length === parseInt(limit);
@@ -164,10 +182,17 @@ router.get('/', optionalAuth, async (req, res) => {
 
     // If user is authenticated, add solve status
     if (req.user) {
-      const userSubmissions = await Submission.find({
+      const baseAcceptedQuery = {
         user: req.user._id,
         status: 'Accepted'
-      }).distinct('problem');
+      };
+      const userSubmissions = await Submission.find(baseAcceptedQuery).distinct('problem');
+      let acceptedProblemIdsByLang = null;
+      if (language) {
+        acceptedProblemIdsByLang = new Set(
+          await Submission.find({ ...baseAcceptedQuery, language }).distinct('problem')
+        );
+      }
 
       problems = problems.map(problem => ({
         ...problem.toObject(),
@@ -181,6 +206,11 @@ router.get('/', optionalAuth, async (req, res) => {
         problems = problems.filter(p => p.solved);
       } else if (status === 'unsolved') {
         problems = problems.filter(p => !p.solved);
+      }
+
+      // Apply language filter if provided (only keep problems accepted in that language)
+      if (language && acceptedProblemIdsByLang) {
+        problems = problems.filter(p => acceptedProblemIdsByLang.has(p._id));
       }
     }
 

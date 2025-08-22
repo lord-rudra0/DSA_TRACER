@@ -1,38 +1,34 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 
-// Placeholder component for a progress chart.
-// Props: data (array), difficultyData ({easy, medium, hard})
-export default function ProgressChart({ data = [], difficultyData = { easy: 0, medium: 0, hard: 0 } }) {
-  const total = (difficultyData.easy || 0) + (difficultyData.medium || 0) + (difficultyData.hard || 0);
+// Recharts AreaChart for monthly accepted counts.
+// Props: data (array of { _id:{year, month}, count })
+export default function ProgressChart({ data = [] }) {
+  const chartData = useMemo(() => {
+    return (data || []).map((d) => ({
+      label: `${d._id.year}-${String(d._id.month).padStart(2, '0')}`,
+      accepted: d.count,
+    }));
+  }, [data]);
+
   return (
-    <div>
-      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 mb-3">
-        <span>Monthly Progress (placeholder)</span>
-        <span className="text-xs text-gray-500">points: {data.length}</span>
-      </div>
-      <div className="space-y-2">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-success-600 dark:text-success-400">Easy</span>
-          <span>{difficultyData.easy}</span>
-        </div>
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded h-2">
-          <div className="bg-success-500 h-2 rounded" style={{ width: `${total ? (difficultyData.easy / total) * 100 : 0}%` }} />
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-warning-600 dark:text-warning-400">Medium</span>
-          <span>{difficultyData.medium}</span>
-        </div>
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded h-2">
-          <div className="bg-warning-500 h-2 rounded" style={{ width: `${total ? (difficultyData.medium / total) * 100 : 0}%` }} />
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-error-600 dark:text-error-400">Hard</span>
-          <span>{difficultyData.hard}</span>
-        </div>
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded h-2">
-          <div className="bg-error-500 h-2 rounded" style={{ width: `${total ? (difficultyData.hard / total) * 100 : 0}%` }} />
-        </div>
-      </div>
+    <div className="h-64">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="colorAccepted" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
+          <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+          <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+          <Tooltip />
+          <Legend />
+          <Area type="monotone" dataKey="accepted" stroke="#3b82f6" fillOpacity={1} fill="url(#colorAccepted)" name="Accepted" />
+        </AreaChart>
+      </ResponsiveContainer>
     </div>
   );
 }

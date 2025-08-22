@@ -10,6 +10,10 @@ const router = express.Router();
 router.get('/user', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
+    // Range handling: accepts 30 | 90 | 365 (days). Default 365.
+    const rangeDays = Math.max(1, parseInt(req.query.range || '365'));
+    const rangeMs = rangeDays * 24 * 60 * 60 * 1000;
+    const rangeStart = new Date(Date.now() - rangeMs);
     
     // Get submission statistics
     const submissionStats = await Submission.aggregate([
@@ -41,7 +45,7 @@ router.get('/user', auth, async (req, res) => {
           user: user._id,
           status: 'Accepted',
           createdAt: { 
-            $gte: new Date(new Date().getFullYear(), 0, 1) // This year
+            $gte: rangeStart
           }
         }
       },
@@ -95,7 +99,7 @@ router.get('/user', auth, async (req, res) => {
           user: user._id,
           status: 'Accepted',
           createdAt: { 
-            $gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) // Last year
+            $gte: rangeStart
           }
         }
       },
@@ -117,7 +121,10 @@ router.get('/user', auth, async (req, res) => {
       { 
         $match: { 
           user: user._id,
-          status: 'Accepted'
+          status: 'Accepted',
+          createdAt: {
+            $gte: rangeStart
+          }
         }
       },
       {
