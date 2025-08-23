@@ -67,7 +67,11 @@ router.post('/sync-leetcode', auth, async (req, res) => {
     // Sync recent submissions
     try {
       const submissionsResponse = await axios.get(`${process.env.LEETCODE_API_BASE}/${leetcodeUsername}/submission`);
-      const recentSubmissions = submissionsResponse.data.submission || [];
+      const recentSubmissions = Array.isArray(submissionsResponse.data?.submission)
+        ? submissionsResponse.data.submission
+        : (Array.isArray(submissionsResponse.data?.recentSubmissions)
+          ? submissionsResponse.data.recentSubmissions
+          : []);
       
       for (const submission of recentSubmissions.slice(0, 200)) { // Last 200 submissions
         // Check if submission already exists
@@ -93,7 +97,7 @@ router.post('/sync-leetcode', auth, async (req, res) => {
           
           // Try to enrich problem difficulty/tags from API
           try {
-            const problemResp = await axios.get(`${process.env.LEETCODE_API_BASE}/problem/${submission.titleSlug}`);
+            const problemResp = await axios.get(`${process.env.LEETCODE_API_BASE}/select?titleSlug=${submission.titleSlug}`);
             const p = problemResp.data || {};
             if (p.difficulty && ['Easy','Medium','Hard'].includes(p.difficulty)) {
               problem.difficulty = p.difficulty;
@@ -123,6 +127,39 @@ router.post('/sync-leetcode', auth, async (req, res) => {
           
           await newSubmission.save();
         }
+      }
+      // After syncing submissions, check if there is at least one accepted submission for today
+      try {
+        const isSameLocalDay = (a, b) => (
+          a.getFullYear() === b.getFullYear() &&
+          a.getMonth() === b.getMonth() &&
+          a.getDate() === b.getDate()
+        );
+        const now = new Date();
+        const hasAcceptedTodayFromAPI = recentSubmissions.some(s => {
+          if (s.statusDisplay !== 'Accepted') return false;
+          const ts = Number(s.timestamp);
+          if (!Number.isFinite(ts)) return false;
+          const ms = ts > 1e12 ? ts : ts * 1000; // handle sec vs ms epochs
+          const d = new Date(ms);
+          return isSameLocalDay(d, now);
+        });
+        // DB fallback: check saved submissions for today
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        const endOfToday = new Date(startOfToday);
+        endOfToday.setDate(endOfToday.getDate() + 1);
+        const hasAcceptedTodayFromDB = await Submission.exists({
+          user: user._id,
+          status: 'Accepted',
+          createdAt: { $gte: startOfToday, $lt: endOfToday }
+        });
+        if (hasAcceptedTodayFromAPI || hasAcceptedTodayFromDB) {
+          user.updateStreak();
+          await user.save();
+        }
+      } catch (_) {
+        // ignore streak update errors to avoid blocking sync
       }
     } catch (submissionError) {
       console.error('Error syncing submissions:', submissionError);
@@ -267,6 +304,37 @@ router.put('/leetcode-username', auth, async (req, res) => {
           await newSubmission.save();
         }
       }
+      // After syncing submissions, check if there is at least one accepted submission for today
+      try {
+        const isSameLocalDay = (a, b) => (
+          a.getFullYear() === b.getFullYear() &&
+          a.getMonth() === b.getMonth() &&
+          a.getDate() === b.getDate()
+        );
+        const now = new Date();
+        const hasAcceptedTodayFromAPI = recentSubmissions.some(s => {
+          if (s.statusDisplay !== 'Accepted') return false;
+          const ts = Number(s.timestamp);
+          if (!Number.isFinite(ts)) return false;
+          const ms = ts > 1e12 ? ts : ts * 1000; // handle sec vs ms epochs
+          const d = new Date(ms);
+          return isSameLocalDay(d, now);
+        });
+        // DB fallback: check saved submissions for today
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        const endOfToday = new Date(startOfToday);
+        endOfToday.setDate(endOfToday.getDate() + 1);
+        const hasAcceptedTodayFromDB = await Submission.exists({
+          user: user._id,
+          status: 'Accepted',
+          createdAt: { $gte: startOfToday, $lt: endOfToday }
+        });
+        if (hasAcceptedTodayFromAPI || hasAcceptedTodayFromDB) {
+          user.updateStreak();
+          await user.save();
+        }
+      } catch (_) {}
     } catch (submissionError) {
       console.error('Error syncing submissions (set username):', submissionError.message || submissionError);
     }
@@ -312,6 +380,29 @@ router.put('/leetcode-username', auth, async (req, res) => {
 router.get('/dashboard', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('-password');
+
+    // Fallback: ensure streak reflects today's accepted submissions from DB
+    try {
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const endOfToday = new Date(startOfToday);
+      endOfToday.setDate(endOfToday.getDate() + 1);
+      const hasAcceptedTodayFromDB = await Submission.exists({
+        user: user._id,
+        status: 'Accepted',
+        createdAt: { $gte: startOfToday, $lt: endOfToday }
+      });
+      const lastSolved = user.lastSolvedDate ? new Date(user.lastSolvedDate) : null;
+      const needsUpdate = hasAcceptedTodayFromDB && (
+        !lastSolved ||
+        lastSolved.setHours(0,0,0,0) !== startOfToday.getTime() ||
+        (user.currentStreak ?? 0) === 0
+      );
+      if (needsUpdate) {
+        user.updateStreak();
+        await user.save();
+      }
+    } catch (_) {}
     
     // Get recent submissions
     const recentSubmissions = await Submission.find({ user: user._id })
