@@ -4,6 +4,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
+import axios from 'axios';
+import jwt from 'jsonwebtoken';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
 import problemRoutes from './routes/problems.js';
@@ -14,6 +16,7 @@ import competitionsRoutes from './routes/competitions.js';
 import adminRoutes from './routes/admin.js';
 import seasonRoutes from './routes/season.js';
 import xpRoutes from './routes/xp.js';
+import User from './models/User.js';
 
 dotenv.config();
 
@@ -43,7 +46,15 @@ app.use(express.urlencoded({ extended: true }));
 
 // Database connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/dsa-tracker')
-  .then(() => console.log('MongoDB connected successfully'))
+  .then(() => {
+    console.log('MongoDB connected successfully');
+    // Start background auto-sync after DB is connected
+    try {
+      startAutoSyncScheduler();
+    } catch (e) {
+      console.warn('Failed to start auto-sync scheduler:', e?.message || e);
+    }
+  })
   .catch(err => console.error('MongoDB connection error:', err));
 
 // Routes
@@ -62,6 +73,50 @@ app.use('/api/xp', xpRoutes);
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
+
+// --- Auto Sync Scheduler ---
+function startAutoSyncScheduler() {
+  const intervalMs = 5 * 60 * 1000; // 5 minutes
+  const batchSize = 10; // limit per tick
+  if (!process.env.JWT_SECRET) {
+    console.warn('⚠️  JWT_SECRET not set; auto-sync disabled.');
+    return;
+  }
+  setInterval(async () => {
+    try {
+      const cutoff = new Date(Date.now() - intervalMs);
+      const candidates = await User.find({
+        leetcodeUsername: { $exists: true, $ne: '' },
+        $or: [
+          { lastLeetCodeSync: { $lt: cutoff } },
+          { lastLeetCodeSync: { $exists: false } }
+        ]
+      })
+        .select('_id leetcodeUsername')
+        .limit(batchSize)
+        .lean();
+
+      if (!candidates.length) return;
+
+      for (const u of candidates) {
+        try {
+          const token = jwt.sign({ userId: u._id }, process.env.JWT_SECRET, { expiresIn: '10m' });
+          await axios.post(`http://localhost:${PORT}/api/users/sync-leetcode`,
+            { leetcodeUsername: u.leetcodeUsername },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          console.log(`✅ Auto-synced ${u.leetcodeUsername}`);
+        } catch (e) {
+          const msg = e?.response?.data?.message || e?.message || e;
+          console.warn(`⚠️  Auto-sync failed for ${u.leetcodeUsername}:`, msg);
+        }
+      }
+    } catch (e) {
+      console.warn('Auto-sync scheduler error:', e?.message || e);
+    }
+  }, intervalMs);
+  console.log(`⏱️  Auto-sync scheduler started (every ${intervalMs / 60000} min).`);
+}
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from 'react-query';
 import axios from 'axios';
 import { 
@@ -10,7 +10,8 @@ import {
   Clock,
   Code,
   Trophy,
-  BookOpen
+  BookOpen,
+  RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import StatsCard from '../../components/Dashboard/StatsCard';
@@ -23,6 +24,8 @@ const Dashboard = () => {
   const { user, syncLeetCode, refreshUser } = useAuth();
   const queryClient = useQueryClient();
   const autoSyncedRef = useRef(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
 
   const { data: dashboardData, isLoading } = useQuery(
     'dashboard',
@@ -62,6 +65,44 @@ const Dashboard = () => {
       })();
     }
   }, [user, dailyChallenge, syncLeetCode, refreshUser, queryClient]);
+
+  // Manual sync handler (button)
+  const handleManualSync = async () => {
+    if (!user?.leetcodeUsername || isSyncing) return;
+    setIsSyncing(true);
+    try {
+      const resp = await syncLeetCode(user.leetcodeUsername);
+      if (resp?.success) {
+        setLastSyncedAt(new Date());
+        await refreshUser();
+        queryClient.invalidateQueries('dashboard');
+        queryClient.invalidateQueries('daily-challenge');
+      }
+    } catch (e) {
+      // no-op
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // Auto sync every 5 minutes
+  useEffect(() => {
+    if (!user?.leetcodeUsername) return;
+    const interval = setInterval(async () => {
+      try {
+        const resp = await syncLeetCode(user.leetcodeUsername);
+        if (resp?.success) {
+          setLastSyncedAt(new Date());
+          await refreshUser();
+          queryClient.invalidateQueries('dashboard');
+          queryClient.invalidateQueries('daily-challenge');
+        }
+      } catch (e) {
+        // ignore background sync errors
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+    return () => clearInterval(interval);
+  }, [user?.leetcodeUsername, syncLeetCode, refreshUser, queryClient]);
 
   if (isLoading) {
     return (
@@ -141,11 +182,26 @@ const Dashboard = () => {
                 <Calendar className="w-4 h-4" />
                 <span>{new Date().toLocaleDateString()}</span>
               </div>
+              {lastSyncedAt && (
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Synced: {lastSyncedAt.toLocaleTimeString()}</span>
+                </div>
+              )}
             </div>
           </div>
-          <div className="hidden md:block">
-            <div className="w-24 h-24 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm">
-              <Code className="w-12 h-12" />
+          <div className="hidden md:flex items-center gap-3">
+            <button
+              onClick={handleManualSync}
+              disabled={isSyncing || !user?.leetcodeUsername}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition disabled:opacity-60 disabled:cursor-not-allowed`}
+              title="Sync your latest LeetCode data"
+            >
+              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+              {isSyncing ? 'Syncing…' : 'Sync Now'}
+            </button>
+            <div className="w-14 h-14 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm">
+              <Code className="w-7 h-7" />
             </div>
           </div>
         </div>
