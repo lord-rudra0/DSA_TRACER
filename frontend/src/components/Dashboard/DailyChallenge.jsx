@@ -28,18 +28,22 @@ export default function DailyChallenge({ challenge }) {
           </p>
         </div>
       </div>
-      {externalHref && (
-        <div className="flex items-center gap-3">
-          <a
-            className="btn btn-primary px-3 py-2"
-            href={externalHref}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Open in LeetCode
-          </a>
-        </div>
-      )}
+      <div className="flex items-center gap-3">
+        {challenge.solved ? (
+          <span className="px-3 py-1 rounded-full text-sm bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-300 font-medium">Solved</span>
+        ) : (
+          externalHref && (
+            <a
+              className="btn btn-primary px-3 py-2"
+              href={externalHref}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open in LeetCode
+            </a>
+          )
+        )}
+      </div>
     </div>
   );
 }

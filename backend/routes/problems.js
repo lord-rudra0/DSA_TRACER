@@ -309,7 +309,7 @@ router.get('/', optionalAuth, async (req, res) => {
 
 // Get problem by slug
 // Get daily challenge (place BEFORE slug route to avoid being caught by '/:titleSlug')
-router.get('/daily/challenge', async (req, res) => {
+router.get('/daily/challenge', optionalAuth, async (req, res) => {
   try {
     // Try to get from LeetCode API
     try {
@@ -345,10 +345,31 @@ router.get('/daily/challenge', async (req, res) => {
           console.warn('Daily challenge save validation error:', validationErr?.message || validationErr);
         }
         
+        // compute solved for current user (DB + best-effort external)
+        let solved = false;
+        if (req.user && problem?._id) {
+          try {
+            const acc = await Submission.findOne({ user: req.user._id, problem: problem._id, status: 'Accepted' });
+            solved = !!acc;
+          } catch {}
+          if (!solved) {
+            try {
+              const userDoc = await User.findById(req.user._id).select('leetcodeUsername');
+              const handle = userDoc?.leetcodeUsername?.trim();
+              if (handle && process.env.LEETCODE_API_BASE) {
+                const extSubUrl = `${process.env.LEETCODE_API_BASE}/${handle}/submission`;
+                const subRes = await axios.get(extSubUrl);
+                const subs = Array.isArray(subRes.data?.submission) ? subRes.data.submission : (subRes.data?.recentSubmissions || []);
+                solved = subs.some(s => (s.statusDisplay || s.status) === 'Accepted' && s.titleSlug === problem.titleSlug);
+              }
+            } catch {}
+          }
+        }
         return res.json({
           ...problem.toObject(),
           date: dailyChallenge.date,
-          link: dailyChallenge.link
+          link: dailyChallenge.link,
+          solved
         });
       }
       
@@ -365,7 +386,27 @@ router.get('/daily/challenge', async (req, res) => {
       });
       
       if (dailyProblem) {
-        return res.json(dailyProblem);
+        // compute solved for current user (DB + best-effort external)
+        let solved = false;
+        if (req.user && dailyProblem?._id) {
+          try {
+            const acc = await Submission.findOne({ user: req.user._id, problem: dailyProblem._id, status: 'Accepted' });
+            solved = !!acc;
+          } catch {}
+          if (!solved) {
+            try {
+              const userDoc = await User.findById(req.user._id).select('leetcodeUsername');
+              const handle = userDoc?.leetcodeUsername?.trim();
+              if (handle && process.env.LEETCODE_API_BASE) {
+                const extSubUrl = `${process.env.LEETCODE_API_BASE}/${handle}/submission`;
+                const subRes = await axios.get(extSubUrl);
+                const subs = Array.isArray(subRes.data?.submission) ? subRes.data.submission : (subRes.data?.recentSubmissions || []);
+                solved = subs.some(s => (s.statusDisplay || s.status) === 'Accepted' && s.titleSlug === dailyProblem.titleSlug);
+              }
+            } catch {}
+          }
+        }
+        return res.json({ ...dailyProblem.toObject(), solved });
       } else {
         return res.status(404).json({ message: 'Daily challenge not found' });
       }
@@ -470,10 +511,18 @@ router.get('/daily/challenge', async (req, res) => {
         problem.dailyChallengeDate = new Date();
         await problem.save();
         
+        let solved = false;
+        if (req.user && problem?._id) {
+          try {
+            const acc = await Submission.findOne({ user: req.user._id, problem: problem._id, status: 'Accepted' });
+            solved = !!acc;
+          } catch {}
+        }
         res.json({
           ...problem.toObject(),
           date: dailyChallenge.date,
-          link: dailyChallenge.link
+          link: dailyChallenge.link,
+          solved
         });
       }
     } catch (apiError) {
@@ -488,7 +537,14 @@ router.get('/daily/challenge', async (req, res) => {
       });
       
       if (dailyProblem) {
-        res.json(dailyProblem);
+        let solved = false;
+        if (req.user && dailyProblem?._id) {
+          try {
+            const acc = await Submission.findOne({ user: req.user._id, problem: dailyProblem._id, status: 'Accepted' });
+            solved = !!acc;
+          } catch {}
+        }
+        res.json({ ...dailyProblem.toObject(), solved });
       } else {
         res.status(404).json({ message: 'Daily challenge not found' });
       }
