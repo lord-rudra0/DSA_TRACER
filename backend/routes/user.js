@@ -64,20 +64,55 @@ router.post('/sync-leetcode', auth, async (req, res) => {
     
     await user.save();
 
-    // Sync recent submissions
+    // Sync recent and accepted submissions
     try {
-      const submissionsResponse = await axios.get(`${process.env.LEETCODE_API_BASE}/${leetcodeUsername}/submission`);
-      const recentSubmissions = Array.isArray(submissionsResponse.data?.submission)
+      // Fetch both feeds
+      const [submissionsResponse, acSubmissionsResponse] = await Promise.all([
+        axios.get(`${process.env.LEETCODE_API_BASE}/${leetcodeUsername}/submission?limit=200`),
+        axios.get(`${process.env.LEETCODE_API_BASE}/${leetcodeUsername}/acSubmission?limit=200`)
+      ]);
+      const recentRaw = Array.isArray(submissionsResponse.data?.submission)
         ? submissionsResponse.data.submission
         : (Array.isArray(submissionsResponse.data?.recentSubmissions)
           ? submissionsResponse.data.recentSubmissions
           : []);
-      
-      for (const submission of recentSubmissions.slice(0, 200)) { // Last 200 submissions
+      const acRaw = Array.isArray(acSubmissionsResponse.data?.acSubmission)
+        ? acSubmissionsResponse.data.acSubmission
+        : (Array.isArray(acSubmissionsResponse.data?.submission)
+          ? acSubmissionsResponse.data.submission
+          : []);
+
+      // Normalize; tag AC feed to default status
+      const normalize = (s, isAC) => {
+        const id = s.id || s.submissionId || s.submission_id || null;
+        const titleSlug = s.titleSlug || s.title_slug || '';
+        const title = s.title || s.titleName || s.questionTitle || '';
+        const statusRaw = s.statusDisplay || s.status || '';
+        const status = statusRaw || (isAC ? 'Accepted' : '');
+        const language = (s.lang || s.language || 'Unknown') || 'Unknown';
+        const timestampNum = Number(s.timestamp || s.time || s.submitTime || 0);
+        const runtime = s.runtime ?? s.runTime ?? null;
+        const memory = s.memory ?? null;
+        const key = id || (titleSlug && timestampNum ? `${titleSlug}-${timestampNum}` : null);
+        return { id, key, titleSlug, title, status, language, timestamp: timestampNum, runtime, memory };
+      };
+      const normalized = [
+        ...recentRaw.map(s => normalize(s, false)),
+        ...acRaw.map(s => normalize(s, true))
+      ].filter(n => n.titleSlug && n.timestamp);
+      // Dedupe by key
+      const byKey = new Map();
+      for (const n of normalized) {
+        const k = n.key || `${n.titleSlug}-${n.timestamp}`;
+        if (!byKey.has(k)) byKey.set(k, n);
+      }
+      const mergedSubmissions = Array.from(byKey.values());
+
+      for (const submission of mergedSubmissions.slice(0, 200)) { // Last 200 combined
         // Check if submission already exists
         const existingSubmission = await Submission.findOne({
           user: user._id,
-          leetcodeSubmissionId: submission.id
+          leetcodeSubmissionId: submission.id || `${submission.titleSlug}-${submission.timestamp}`
         });
         
         if (!existingSubmission) {
@@ -85,47 +120,66 @@ router.post('/sync-leetcode', auth, async (req, res) => {
           let problem = await Problem.findOne({ titleSlug: submission.titleSlug });
           
           if (!problem) {
-            // Create basic problem entry
-            problem = new Problem({
-              titleSlug: submission.titleSlug,
-              title: submission.title,
-              difficulty: 'Unknown', // Will be updated below if API available
-              tags: []
-            });
-            await problem.save();
-          }
-          
-          // Try to enrich problem difficulty/tags from API
-          try {
-            const problemResp = await axios.get(`${process.env.LEETCODE_API_BASE}/select?titleSlug=${submission.titleSlug}`);
-            const p = problemResp.data || {};
-            if (p.difficulty && ['Easy','Medium','Hard'].includes(p.difficulty)) {
-              problem.difficulty = p.difficulty;
+            try {
+              let difficulty = 'Easy';
+              let tags = [];
+              const problemResp = await axios.get(`${process.env.LEETCODE_API_BASE}/select?titleSlug=${submission.titleSlug}`);
+              const p = problemResp.data || {};
+              if (p.difficulty && ['Easy','Medium','Hard'].includes(p.difficulty)) {
+                difficulty = p.difficulty;
+              }
+              if (Array.isArray(p.topicTags)) {
+                tags = p.topicTags.map(t => t.name || t);
+              }
+              problem = new Problem({
+                titleSlug: submission.titleSlug,
+                title: submission.title,
+                difficulty,
+                tags
+              });
+              await problem.save();
+            } catch (probSaveErr) {
+              console.error('Problem save error:', probSaveErr?.message || probSaveErr);
+              // As a fallback, try to load again in case of race condition
+              problem = await Problem.findOne({ titleSlug: submission.titleSlug });
+              if (!problem) throw probSaveErr;
             }
-            if (Array.isArray(p.topicTags)) {
-              problem.tags = p.topicTags.map(t => t.name || t);
-            }
-            await problem.save();
-          } catch (_) {
-            // ignore enrichment failures
+          } else {
+            // Enrich existing problem if possible (non-blocking)
+            try {
+              const problemResp = await axios.get(`${process.env.LEETCODE_API_BASE}/select?titleSlug=${submission.titleSlug}`);
+              const p = problemResp.data || {};
+              let changed = false;
+              if (p.difficulty && ['Easy','Medium','Hard'].includes(p.difficulty) && problem.difficulty !== p.difficulty) {
+                problem.difficulty = p.difficulty; changed = true;
+              }
+              if (Array.isArray(p.topicTags)) {
+                const newTags = p.topicTags.map(t => t.name || t);
+                if (JSON.stringify(newTags) !== JSON.stringify(problem.tags)) { problem.tags = newTags; changed = true; }
+              }
+              if (changed) await problem.save();
+            } catch (_) { /* ignore enrichment failures */ }
           }
 
-          // Create submission record
-          const newSubmission = new Submission({
-            user: user._id,
-            problem: problem._id,
-            problemTitle: submission.title,
-            problemDifficulty: problem.difficulty,
-            language: submission.lang,
-            status: submission.statusDisplay,
-            runtime: submission.runtime,
-            memory: submission.memory,
-            leetcodeSubmissionId: submission.id,
-            timestamp: submission.timestamp,
-            firstAccepted: submission.statusDisplay === 'Accepted'
-          });
-          
-          await newSubmission.save();
+          // Create submission record with validation-safe defaults
+          try {
+            const newSubmission = new Submission({
+              user: user._id,
+              problem: problem._id,
+              problemTitle: submission.title,
+              problemDifficulty: problem.difficulty,
+              language: submission.language || 'Unknown',
+              status: submission.status || 'Accepted',
+              runtime: submission.runtime,
+              memory: submission.memory,
+              leetcodeSubmissionId: submission.id || `${submission.titleSlug}-${submission.timestamp}`,
+              timestamp: submission.timestamp,
+              firstAccepted: (submission.status || 'Accepted') === 'Accepted'
+            });
+            await newSubmission.save();
+          } catch (saveErr) {
+            console.error('Submission save error:', saveErr?.message || saveErr);
+          }
         }
       }
       // After syncing submissions, check if there is at least one accepted submission for today
@@ -136,9 +190,9 @@ router.post('/sync-leetcode', auth, async (req, res) => {
           a.getDate() === b.getDate()
         );
         const now = new Date();
-        const hasAcceptedTodayFromAPI = recentSubmissions.some(s => {
-          if (s.statusDisplay !== 'Accepted') return false;
-          const ts = Number(s.timestamp);
+        const hasAcceptedTodayFromAPI = mergedSubmissions.some(s => {
+          if ((s.status || s.statusDisplay) !== 'Accepted') return false;
+          const ts = Number(s.timestamp || s.time);
           if (!Number.isFinite(ts)) return false;
           const ms = ts > 1e12 ? ts : ts * 1000; // handle sec vs ms epochs
           const d = new Date(ms);
@@ -251,93 +305,120 @@ router.put('/leetcode-username', auth, async (req, res) => {
     };
 
     const oldXP = Number.isFinite(user.xp) ? Number(user.xp) : 0;
-    const newXP = Number((user.easySolved * 10) + (user.mediumSolved * 20) + (user.hardSolved * 30));
-    user.xp = Math.max(oldXP, Number.isFinite(newXP) ? newXP : 0);
-    const leveledUp = user.checkLevelUp();
-    await user.save();
 
-    // Sync recent submissions (up to 200)
-    try {
-      const submissionsResponse = await axios.get(`${process.env.LEETCODE_API_BASE}/${leetcodeUsername}/submission`);
-      const recentSubmissions = submissionsResponse.data.submission || [];
-      for (const submission of recentSubmissions.slice(0, 200)) {
-        const existingSubmission = await Submission.findOne({
-          user: user._id,
-          leetcodeSubmissionId: submission.id
-        });
-        if (!existingSubmission) {
-          let problem = await Problem.findOne({ titleSlug: submission.titleSlug });
-          if (!problem) {
-            problem = new Problem({
-              titleSlug: submission.titleSlug,
-              title: submission.title,
-              difficulty: 'Unknown',
-              tags: []
-            });
-            await problem.save();
-          }
-          // Enrich problem difficulty/tags
-          try {
-            const problemResp = await axios.get(`${process.env.LEETCODE_API_BASE}/problem/${submission.titleSlug}`);
-            const p = problemResp.data || {};
-            if (p.difficulty && ['Easy','Medium','Hard'].includes(p.difficulty)) {
-              problem.difficulty = p.difficulty;
-            }
-            if (Array.isArray(p.topicTags)) {
-              problem.tags = p.topicTags.map(t => t.name || t);
-            }
-            await problem.save();
-          } catch (_) {}
-          const newSubmission = new Submission({
-            user: user._id,
-            problem: problem._id,
-            problemTitle: submission.title,
-            problemDifficulty: problem.difficulty,
-            language: submission.lang,
-            status: submission.statusDisplay,
-            runtime: submission.runtime,
-            memory: submission.memory,
-            leetcodeSubmissionId: submission.id,
-            timestamp: submission.timestamp,
-            firstAccepted: submission.statusDisplay === 'Accepted'
-          });
-          await newSubmission.save();
-        }
-      }
-      // After syncing submissions, check if there is at least one accepted submission for today
-      try {
-        const isSameLocalDay = (a, b) => (
-          a.getFullYear() === b.getFullYear() &&
-          a.getMonth() === b.getMonth() &&
-          a.getDate() === b.getDate()
-        );
-        const now = new Date();
-        const hasAcceptedTodayFromAPI = recentSubmissions.some(s => {
-          if (s.statusDisplay !== 'Accepted') return false;
-          const ts = Number(s.timestamp);
-          if (!Number.isFinite(ts)) return false;
-          const ms = ts > 1e12 ? ts : ts * 1000; // handle sec vs ms epochs
-          const d = new Date(ms);
-          return isSameLocalDay(d, now);
-        });
-        // DB fallback: check saved submissions for today
-        const startOfToday = new Date();
-        startOfToday.setHours(0, 0, 0, 0);
-        const endOfToday = new Date(startOfToday);
-        endOfToday.setDate(endOfToday.getDate() + 1);
-        const hasAcceptedTodayFromDB = await Submission.exists({
-          user: user._id,
-          status: 'Accepted',
-          createdAt: { $gte: startOfToday, $lt: endOfToday }
-        });
-        if (hasAcceptedTodayFromAPI || hasAcceptedTodayFromDB) {
-          user.updateStreak();
-          await user.save();
-        }
-      } catch (_) {}
-    } catch (submissionError) {
-      console.error('Error syncing submissions (set username):', submissionError.message || submissionError);
-    }
+// Sync recent and accepted submissions (up to 200)
+try {
+const [submissionsResponse, acSubmissionsResponse] = await Promise.all([
+axios.get(`${process.env.LEETCODE_API_BASE}/${leetcodeUsername}/submission?limit=200`),
+axios.get(`${process.env.LEETCODE_API_BASE}/${leetcodeUsername}/acSubmission?limit=200`)
+]);
+const recentRaw = Array.isArray(submissionsResponse.data?.submission)
+? submissionsResponse.data.submission
+: (Array.isArray(submissionsResponse.data?.recentSubmissions)
+? submissionsResponse.data.recentSubmissions
+: []);
+const acRaw = Array.isArray(acSubmissionsResponse.data?.acSubmission)
+? acSubmissionsResponse.data.acSubmission
+: (Array.isArray(acSubmissionsResponse.data?.submission)
+? acSubmissionsResponse.data.submission
+: []);
+const normalize = (s) => {
+const id = s.id || s.submissionId || s.submission_id || null;
+const titleSlug = s.titleSlug || s.title_slug || '';
+const title = s.title || s.titleName || s.questionTitle || '';
+const status = s.statusDisplay || s.status || '';
+const language = s.lang || s.language || '';
+const timestampNum = Number(s.timestamp || s.time || s.submitTime || 0);
+const runtime = s.runtime ?? s.runTime ?? null;
+const memory = s.memory ?? null;
+const key = id || (titleSlug && timestampNum ? `${titleSlug}-${timestampNum}` : null);
+return { id, key, titleSlug, title, status, language, timestamp: timestampNum, runtime, memory };
+};
+const normalized = [...recentRaw, ...acRaw].map(normalize).filter(n => n.titleSlug && n.timestamp);
+const byKey = new Map();
+for (const n of normalized) {
+const k = n.key || `${n.titleSlug}-${n.timestamp}`;
+if (!byKey.has(k)) byKey.set(k, n);
+}
+const mergedSubmissions = Array.from(byKey.values());
+for (const submission of mergedSubmissions.slice(0, 200)) {
+const existingSubmission = await Submission.findOne({
+user: user._id,
+leetcodeSubmissionId: submission.id || `${submission.titleSlug}-${submission.timestamp}`
+});
+if (!existingSubmission) {
+let problem = await Problem.findOne({ titleSlug: submission.titleSlug });
+if (!problem) {
+problem = new Problem({
+titleSlug: submission.titleSlug,
+title: submission.title,
+difficulty: 'Unknown',
+tags: []
+});
+await problem.save();
+}
+// Enrich problem difficulty/tags
+try {
+const problemResp = await axios.get(`${process.env.LEETCODE_API_BASE}/select?titleSlug=${submission.titleSlug}`);
+const p = problemResp.data || {};
+if (p.difficulty && ['Easy','Medium','Hard'].includes(p.difficulty)) {
+problem.difficulty = p.difficulty;
+}
+if (Array.isArray(p.topicTags)) {
+problem.tags = p.topicTags.map(t => t.name || t);
+}
+await problem.save();
+} catch (_) {}
+const newSubmission = new Submission({
+user: user._id,
+problem: problem._id,
+problemTitle: submission.title,
+problemDifficulty: problem.difficulty,
+language: submission.language,
+status: submission.status,
+runtime: submission.runtime,
+memory: submission.memory,
+leetcodeSubmissionId: submission.id || `${submission.titleSlug}-${submission.timestamp}`,
+timestamp: submission.timestamp,
+firstAccepted: submission.status === 'Accepted'
+});
+await newSubmission.save();
+}
+}
+// After syncing submissions, check if there is at least one accepted submission for today
+try {
+const isSameLocalDay = (a, b) => (
+a.getFullYear() === b.getFullYear() &&
+a.getMonth() === b.getMonth() &&
+a.getDate() === b.getDate()
+);
+const now = new Date();
+const hasAcceptedTodayFromAPI = mergedSubmissions.some(s => {
+if ((s.status || s.statusDisplay) !== 'Accepted') return false;
+const ts = Number(s.timestamp || s.time);
+if (!Number.isFinite(ts)) return false;
+const ms = ts > 1e12 ? ts : ts * 1000; // handle sec vs ms epochs
+const d = new Date(ms);
+return isSameLocalDay(d, now);
+});
+// DB fallback: check saved submissions for today
+const startOfToday = new Date();
+startOfToday.setHours(0, 0, 0, 0);
+const endOfToday = new Date(startOfToday);
+endOfToday.setDate(endOfToday.getDate() + 1);
+const hasAcceptedTodayFromDB = await Submission.exists({
+user: user._id,
+status: 'Accepted',
+createdAt: { $gte: startOfToday, $lt: endOfToday }
+});
+if (hasAcceptedTodayFromAPI || hasAcceptedTodayFromDB) {
+user.updateStreak();
+await user.save();
+}
+} catch (_) {}
+} catch (submissionError) {
+console.error('Error syncing submissions (set username):', submissionError.message || submissionError);
+}
 
     // Fallback recompute totals if zeros
     try {
