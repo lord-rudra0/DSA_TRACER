@@ -51,12 +51,13 @@ router.post('/sync-leetcode', auth, async (req, res) => {
     };
 
     // Calculate XP based on problems solved
-    const newXP = (userData.easySolved * 10) + 
+    const newXP = Number((userData.easySolved * 10) + 
                   (userData.mediumSolved * 20) + 
-                  (userData.hardSolved * 30);
+                  (userData.hardSolved * 30));
     
-    const oldXP = user.xp;
-    user.xp = Math.max(user.xp, newXP); // Don't decrease XP
+    const prevXP = Number.isFinite(user.xp) ? Number(user.xp) : 0;
+    const safeNewXP = Number.isFinite(newXP) ? newXP : 0;
+    user.xp = Math.max(prevXP, safeNewXP); // Don't decrease XP
     
     // Check for level up
     const leveledUp = user.checkLevelUp();
@@ -84,12 +85,27 @@ router.post('/sync-leetcode', auth, async (req, res) => {
             problem = new Problem({
               titleSlug: submission.titleSlug,
               title: submission.title,
-              difficulty: 'Unknown', // Will be updated when problem is accessed
+              difficulty: 'Unknown', // Will be updated below if API available
               tags: []
             });
             await problem.save();
           }
           
+          // Try to enrich problem difficulty/tags from API
+          try {
+            const problemResp = await axios.get(`${process.env.LEETCODE_API_BASE}/problem/${submission.titleSlug}`);
+            const p = problemResp.data || {};
+            if (p.difficulty && ['Easy','Medium','Hard'].includes(p.difficulty)) {
+              problem.difficulty = p.difficulty;
+            }
+            if (Array.isArray(p.topicTags)) {
+              problem.tags = p.topicTags.map(t => t.name || t);
+            }
+            await problem.save();
+          } catch (_) {
+            // ignore enrichment failures
+          }
+
           // Create submission record
           const newSubmission = new Submission({
             user: user._id,
@@ -113,11 +129,45 @@ router.post('/sync-leetcode', auth, async (req, res) => {
       // Continue even if submissions sync fails
     }
 
+    // If profile counters look zero, recompute from our submissions as a fallback
+    try {
+      const needRecount = (user.totalProblems ?? 0) === 0 && (user.easySolved ?? 0) === 0 && (user.mediumSolved ?? 0) === 0 && (user.hardSolved ?? 0) === 0;
+      if (needRecount) {
+        const matchStage = { $match: { user: user._id, status: 'Accepted' } };
+        const agg = await Submission.aggregate([
+          matchStage,
+          { $group: { _id: '$problemDifficulty', count: { $sum: 1 } } }
+        ]);
+        const totalAgg = await Submission.aggregate([
+          matchStage,
+          { $count: 'total' }
+        ]);
+        const map = Object.fromEntries(agg.map(a => [a._id || 'Unknown', a.count]));
+        const easyC = map.Easy || 0;
+        const medC = map.Medium || 0;
+        const hardC = map.Hard || 0;
+        const totalAccepted = (totalAgg[0]?.total) || 0;
+        user.easySolved = easyC;
+        user.mediumSolved = medC;
+        user.hardSolved = hardC;
+        // If difficulties unknown, ensure totalProblems reflects accepted count at least
+        const sumKnown = easyC + medC + hardC;
+        user.totalProblems = sumKnown > 0 ? sumKnown : totalAccepted;
+        const prevXP2 = Number.isFinite(user.xp) ? Number(user.xp) : 0;
+        const newXP2 = Number((user.easySolved * 10) + (user.mediumSolved * 20) + (user.hardSolved * 30));
+        user.xp = Math.max(prevXP2, Number.isFinite(newXP2) ? newXP2 : 0);
+        user.checkLevelUp();
+        await user.save();
+      }
+    } catch (recountErr) {
+      console.error('Error recomputing totals from submissions:', recountErr);
+    }
+
     res.json({
       message: 'LeetCode data synced successfully',
       user: {
         ...user.toObject(),
-        xpGained: user.xp - oldXP,
+        xpGained: user.xp - prevXP,
         leveledUp
       }
     });
@@ -163,9 +213,9 @@ router.put('/leetcode-username', auth, async (req, res) => {
       contributionPoints: userData.contributionPoints
     };
 
-    const oldXP = user.xp;
-    const newXP = (user.easySolved * 10) + (user.mediumSolved * 20) + (user.hardSolved * 30);
-    user.xp = Math.max(user.xp, newXP);
+    const oldXP = Number.isFinite(user.xp) ? Number(user.xp) : 0;
+    const newXP = Number((user.easySolved * 10) + (user.mediumSolved * 20) + (user.hardSolved * 30));
+    user.xp = Math.max(oldXP, Number.isFinite(newXP) ? newXP : 0);
     const leveledUp = user.checkLevelUp();
     await user.save();
 
@@ -189,6 +239,18 @@ router.put('/leetcode-username', auth, async (req, res) => {
             });
             await problem.save();
           }
+          // Enrich problem difficulty/tags
+          try {
+            const problemResp = await axios.get(`${process.env.LEETCODE_API_BASE}/problem/${submission.titleSlug}`);
+            const p = problemResp.data || {};
+            if (p.difficulty && ['Easy','Medium','Hard'].includes(p.difficulty)) {
+              problem.difficulty = p.difficulty;
+            }
+            if (Array.isArray(p.topicTags)) {
+              problem.tags = p.topicTags.map(t => t.name || t);
+            }
+            await problem.save();
+          } catch (_) {}
           const newSubmission = new Submission({
             user: user._id,
             problem: problem._id,
@@ -207,6 +269,29 @@ router.put('/leetcode-username', auth, async (req, res) => {
       }
     } catch (submissionError) {
       console.error('Error syncing submissions (set username):', submissionError.message || submissionError);
+    }
+
+    // Fallback recompute totals if zeros
+    try {
+      const needRecount = (user.totalProblems ?? 0) === 0 && (user.easySolved ?? 0) === 0 && (user.mediumSolved ?? 0) === 0 && (user.hardSolved ?? 0) === 0;
+      if (needRecount) {
+        const agg = await Submission.aggregate([
+          { $match: { user: user._id, status: 'Accepted' } },
+          { $group: { _id: '$problemDifficulty', count: { $sum: 1 } } }
+        ]);
+        const map = Object.fromEntries(agg.map(a => [a._id || 'Unknown', a.count]));
+        user.easySolved = map.Easy || 0;
+        user.mediumSolved = map.Medium || 0;
+        user.hardSolved = map.Hard || 0;
+        user.totalProblems = user.easySolved + user.mediumSolved + user.hardSolved;
+        const prevXP2 = Number.isFinite(user.xp) ? Number(user.xp) : 0;
+        const newXP2 = Number((user.easySolved * 10) + (user.mediumSolved * 20) + (user.hardSolved * 30));
+        user.xp = Math.max(prevXP2, Number.isFinite(newXP2) ? newXP2 : 0);
+        user.checkLevelUp();
+        await user.save();
+      }
+    } catch (recountErr) {
+      console.error('Error recomputing totals from submissions:', recountErr);
     }
 
     res.json({

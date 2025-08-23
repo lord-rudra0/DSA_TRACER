@@ -1,5 +1,5 @@
-import React from 'react';
-import { useQuery } from 'react-query';
+import React, { useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from 'react-query';
 import axios from 'axios';
 import { 
   TrendingUp, 
@@ -20,7 +20,9 @@ import RecentSubmissions from '../../components/Dashboard/RecentSubmissions';
 import DailyChallenge from '../../components/Dashboard/DailyChallenge';
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, syncLeetCode, refreshUser } = useAuth();
+  const queryClient = useQueryClient();
+  const autoSyncedRef = useRef(false);
 
   const { data: dashboardData, isLoading } = useQuery(
     'dashboard',
@@ -37,6 +39,29 @@ const Dashboard = () => {
       staleTime: 10 * 60 * 1000, // 10 minutes
     }
   );
+
+  // Auto-sync LeetCode if daily shows solved but stats appear stale
+  useEffect(() => {
+    if (autoSyncedRef.current) return;
+    const hasHandle = !!user?.leetcodeUsername;
+    const solved = !!dailyChallenge?.solved;
+    const statsStale = !user?.lastLeetCodeSync || (user?.totalProblems ?? 0) === 0;
+    if (hasHandle && solved && statsStale) {
+      autoSyncedRef.current = true;
+      (async () => {
+        try {
+          const resp = await syncLeetCode(user.leetcodeUsername);
+          if (resp?.success) {
+            await refreshUser();
+            queryClient.invalidateQueries('dashboard');
+            queryClient.invalidateQueries('daily-challenge');
+          }
+        } catch (e) {
+          // ignore auto sync errors silently
+        }
+      })();
+    }
+  }, [user, dailyChallenge, syncLeetCode, refreshUser, queryClient]);
 
   if (isLoading) {
     return (
