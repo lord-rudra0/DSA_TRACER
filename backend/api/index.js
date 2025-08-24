@@ -19,7 +19,23 @@ const app = express();
 
 // Basic middleware
 app.use(helmet());
-app.use(cors({ origin: '*', credentials: true }));
+// Allow only expected frontends and support Authorization header + preflight
+const allowedOrigins = [
+  'https://dsa-tracer-rudra.vercel.app',
+  'http://localhost:5173'
+];
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // mobile apps/curl
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+// Explicitly respond to preflight
+app.options('*', cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
