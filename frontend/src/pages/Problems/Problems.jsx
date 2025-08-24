@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useQuery } from 'react-query';
+import { useQuery, useInfiniteQuery } from 'react-query';
+import { FixedSizeList as List } from 'react-window';
 import axios from 'axios';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { Search, Filter, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 
 // Difficulty UI helpers
@@ -12,22 +13,24 @@ const DIFF_COLORS = {
 };
 
 const LIMIT = 20;
+const SOFT_CAP_PAGES = 5; // 5 * 20 = 100 items
+const SOFT_CAP = LIMIT * SOFT_CAP_PAGES;
+const ROW_HEIGHT = 140; // px, approximate card height
 
 export default function Problems() {
   const location = useLocation();
   // Filters & state
-  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [difficulty, setDifficulty] = useState(''); // '', 'Easy', 'Medium', 'Hard'
   const [status, setStatus] = useState(''); // '', 'solved', 'unsolved'
   const [selectedTags, setSelectedTags] = useState([]); // array of tag names
   const [language, setLanguage] = useState(''); // e.g., 'JavaScript', 'C++'
   const [sort, setSort] = useState('relevance'); // 'relevance' | 'difficulty' | 'acceptance'
+  const [allowBeyondCap, setAllowBeyondCap] = useState(false);
 
   // Initialize from URL
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const qPage = parseInt(params.get('page') || '1');
     const qSearch = params.get('search') || '';
     const qDifficulty = params.get('difficulty') || '';
     const qStatus = params.get('status') || '';
@@ -35,7 +38,6 @@ export default function Problems() {
     const qLanguage = params.get('language') || '';
     const qSort = params.get('sort') || 'relevance';
 
-    setPage(Number.isFinite(qPage) && qPage > 0 ? qPage : 1);
     setSearch(qSearch);
     setDifficulty(qDifficulty);
     setStatus(qStatus);
@@ -44,10 +46,9 @@ export default function Problems() {
     setSort(qSort);
   }, [location.search]);
 
-  // Build query params
-  const queryParams = useMemo(() => {
+  // Build base (filter) params; page will be supplied by useInfiniteQuery
+  const baseFilterParams = useMemo(() => {
     const params = new URLSearchParams();
-    params.set('page', page);
     params.set('limit', LIMIT);
     if (search) params.set('search', search);
     if (difficulty) params.set('difficulty', difficulty);
@@ -56,16 +57,31 @@ export default function Problems() {
     if (language) params.set('language', language);
     if (sort && sort !== 'relevance') params.set('sort', sort);
     return params.toString();
-  }, [page, search, difficulty, status, selectedTags, sort]);
+  }, [search, difficulty, status, selectedTags, language, sort]);
 
-  // Fetch problems
-  const { data, isLoading, isError, refetch, isFetching } = useQuery(
-    ['problems', queryParams],
-    async () => {
-      const res = await axios.get(`/problems?${queryParams}`);
-      return res.data; // { problems, pagination: { current, total, hasNext, hasPrev }, total }
+  // Fetch problems with infinite loading
+  const {
+    data,
+    isLoading,
+    isError,
+    refetch,
+    isFetching,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery(
+    ['problems', baseFilterParams],
+    async ({ pageParam = 1 }) => {
+      const qp = baseFilterParams ? `${baseFilterParams}&page=${pageParam}` : `page=${pageParam}`;
+      const res = await axios.get(`/problems?${qp}`);
+      return res.data; // { problems, pagination, total }
     },
-    { keepPreviousData: true, staleTime: 60 * 1000 }
+    {
+      getNextPageParam: (lastPage) =>
+        lastPage?.pagination?.hasNext ? (lastPage?.pagination?.current || 1) + 1 : undefined,
+      keepPreviousData: true,
+      staleTime: 60 * 1000,
+    }
   );
 
   // Fetch tags meta
@@ -75,24 +91,24 @@ export default function Problems() {
     { staleTime: 10 * 60 * 1000 }
   );
 
-  const items = data?.problems || [];
-  const totalPages = data?.pagination?.total || 1;
-  const totalCount = data?.total || items.length || 0;
+  const pages = data?.pages || [];
+  const items = pages.flatMap((p) => p?.problems || []);
+  const firstPage = pages[0];
+  const totalCount = firstPage?.total ?? items.length ?? 0;
 
   const toggleTag = (tag) => {
-    setPage(1);
     setSelectedTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
     );
   };
 
   const resetFilters = () => {
-    setPage(1);
     setSearch('');
     setDifficulty('');
     setStatus('');
     setSelectedTags([]);
     setSort('relevance');
+    setAllowBeyondCap(false);
   };
 
   return (
@@ -126,7 +142,7 @@ export default function Problems() {
               <input
                 type="text"
                 value={search}
-                onChange={(e) => { setPage(1); setSearch(e.target.value); }}
+                onChange={(e) => { setSearch(e.target.value); }}
                 placeholder="Search by title or tag..."
                 className="input pl-9 w-full"
               />
@@ -140,7 +156,7 @@ export default function Problems() {
               {['', 'Easy', 'Medium', 'Hard'].map((d) => (
                 <button
                   key={d || 'All'}
-                  onClick={() => { setPage(1); setDifficulty(d); }}
+                  onClick={() => { setDifficulty(d); }}
                   className={`px-3 py-2 rounded-md text-sm border transition ${
                     difficulty === d
                       ? 'bg-primary-600 text-white border-primary-600'
@@ -164,7 +180,7 @@ export default function Problems() {
               ].map(({ k, label }) => (
                 <button
                   key={k || 'all'}
-                  onClick={() => { setPage(1); setStatus(k); }}
+                  onClick={() => { setStatus(k); }}
                   className={`px-3 py-2 rounded-md text-sm border transition ${
                     status === k
                       ? 'bg-primary-600 text-white border-primary-600'
@@ -192,7 +208,7 @@ export default function Problems() {
               {(tagsData || []).map((t) => (
                 <button
                   key={t.name}
-                  onClick={() => { setPage(1); toggleTag(t.name); }}
+                  onClick={() => { toggleTag(t.name); }}
                   className={`px-3 py-1.5 rounded-full text-xs border transition ${
                     selectedTags.includes(t.name)
                       ? 'bg-primary-600 text-white border-primary-600'
@@ -219,7 +235,7 @@ export default function Problems() {
               <select
                 className="select"
                 value={sort}
-                onChange={(e) => { setPage(1); setSort(e.target.value); }}
+                onChange={(e) => { setSort(e.target.value); }}
               >
                 <option value="relevance">Relevance</option>
                 <option value="difficulty">Difficulty</option>
@@ -254,94 +270,99 @@ export default function Problems() {
             </div>
           )}
 
-          {/* Problems list */}
-          <div className="space-y-3">
-            {items.map((p) => {
-              const diffClass = DIFF_COLORS[p.difficulty] || 'text-gray-700 bg-gray-100 border-gray-200';
-              const acceptance = p?.stats?.acRate ?? p?.acRate; // backend may send either
-              return (
-                <div key={p._id || p.titleSlug} className="card p-4">
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                    {/* Left: title & meta */}
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-3">
-                        <Link
-                          to={`/problems/${p.titleSlug}`}
-                          className="font-semibold text-gray-900 dark:text-white hover:underline"
-                        >
-                          {p.title}
-                        </Link>
-                        <span className={`text-xs px-2 py-1 rounded border ${diffClass}`}>
-                          {p.difficulty}
-                        </span>
-                        {p.solved ? (
-                          <span className="inline-flex items-center text-xs text-success-700 bg-success-50 border border-success-200 px-2 py-0.5 rounded">
-                            <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Solved
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center text-xs text-gray-600 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded">
-                            <XCircle className="w-3.5 h-3.5 mr-1" /> Unsolved
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-gray-600 dark:text-gray-400">
-                        Acceptance: {acceptance != null ? `${acceptance}%` : '—'}
-                      </div>
-                      {/* Tags */}
-                      {p.tags?.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mt-1">
-                          {p.tags.slice(0, 8).map((tag) => (
-                            <span key={tag} className="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                              {tag}
+          {/* Problems list (virtualized) */}
+          {items.length > 0 && (
+            <List
+              height={Math.min(8 * ROW_HEIGHT, window.innerHeight * 0.6)}
+              itemCount={(allowBeyondCap ? items : items.slice(0, SOFT_CAP)).length}
+              itemSize={ROW_HEIGHT}
+              width={'100%'}
+              className="space-y-3"
+            >
+              {({ index, style }) => {
+                const p = (allowBeyondCap ? items : items.slice(0, SOFT_CAP))[index];
+                const diffClass = DIFF_COLORS[p.difficulty] || 'text-gray-700 bg-gray-100 border-gray-200';
+                const acceptance = p?.stats?.acRate ?? p?.acRate;
+                return (
+                  <div style={style}>
+                    <div className="card p-4">
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                        {/* Left: title & meta */}
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-3">
+                            <span className="font-semibold text-gray-900 dark:text-white">
+                              {p.title}
                             </span>
-                          ))}
+                            <span className={`text-xs px-2 py-1 rounded border ${diffClass}`}>
+                              {p.difficulty}
+                            </span>
+                            {p.solved ? (
+                              <span className="inline-flex items-center text-xs text-success-700 bg-success-50 border border-success-200 px-2 py-0.5 rounded">
+                                <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Solved
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center text-xs text-gray-600 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded">
+                                <XCircle className="w-3.5 h-3.5 mr-1" /> Unsolved
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-600 dark:text-gray-400">
+                            Acceptance: {acceptance != null ? `${acceptance}%` : '—'}
+                          </div>
+                          {/* Tags */}
+                          {p.tags?.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {p.tags.slice(0, 8).map((tag) => (
+                                <span key={tag} className="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-
-                    {/* Right: actions */}
-                    <div className="flex items-center gap-2">
-                      <a
-                        href={p.link || (p.titleSlug ? `https://leetcode.com/problems/${p.titleSlug}/` : '#')}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="btn btn-outline"
-                      >
-                        Solve on LeetCode
-                      </a>
-                      <Link to={`/problems/${p.titleSlug}`} className="btn btn-primary">
-                        View
-                      </Link>
+                        {/* Right: actions */}
+                        <div className="flex items-center gap-2">
+                          <a
+                            href={p.link || (p.titleSlug ? `https://leetcode.com/problems/${p.titleSlug}/` : '#')}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn btn-outline"
+                          >
+                            Solve on LeetCode
+                          </a>
+                          {/* Removed internal View link as requested */}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4">
-              <button
-                className="btn btn-outline"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-              >
-                Previous
-              </button>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Page <span className="font-medium">{page}</span> of{' '}
-                <span className="font-medium">{totalPages}</span>
-              </div>
-              <button
-                className="btn btn-outline"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-              >
-                Next
-              </button>
-            </div>
+                );
+              }}
+            </List>
           )}
+
+          {/* Soft cap and Load more controls */}
+          <div className="flex items-center justify-center mt-4">
+            {!allowBeyondCap && items.length >= SOFT_CAP ? (
+              <button
+                className="btn btn-secondary"
+                onClick={() => setAllowBeyondCap(true)}
+              >
+                Show more results (may be slower)
+              </button>
+            ) : hasNextPage ? (
+              <button
+                className="btn btn-outline"
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+              >
+                {isFetchingNextPage ? 'Loading…' : 'Load more'}
+              </button>
+            ) : (
+              items.length > 0 && (
+                <div className="text-sm text-gray-500 dark:text-gray-400">No more results</div>
+              )
+            )}
+          </div>
         </section>
       </div>
     </div>
