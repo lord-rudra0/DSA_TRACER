@@ -51,6 +51,12 @@ const Sidebar = ({ mobile = false, onNavigate }) => {
       description: 'Rankings and competition'
     },
     { 
+      name: 'Competitions', 
+      href: '/competitions', 
+      icon: Trophy,
+      description: 'Create and join competitions'
+    },
+    { 
       name: 'Contest', 
       href: '/contest', 
       icon: Award,

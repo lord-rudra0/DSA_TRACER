@@ -141,6 +141,7 @@ export default function Profile() {
                 const isAdmin = profile.role === 'admin';
                 const latestReq = myRequests?.[0];
                 const isPending = latestReq?.status === 'pending';
+                const isApproved = latestReq?.status === 'approved';
                 if (isAdmin) {
                   return (
                     <span className="px-2 py-1 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 text-xs font-medium">Admin</span>
@@ -152,6 +153,14 @@ export default function Profile() {
                       className="px-3 py-1.5 rounded bg-gray-300 text-gray-700 dark:bg-gray-800 dark:text-gray-300 text-sm cursor-not-allowed"
                       disabled
                     >Request Pending</button>
+                  );
+                }
+                if (isApproved) {
+                  return (
+                    <button
+                      className="px-3 py-1.5 rounded bg-emerald-200 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 text-sm cursor-not-allowed"
+                      disabled
+                    >Approved • Awaiting Promotion</button>
                   );
                 }
                 return (

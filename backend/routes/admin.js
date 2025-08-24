@@ -10,8 +10,17 @@ const router = express.Router();
 router.post('/requests', auth, async (req, res) => {
   try {
     const { note = '' } = req.body || {};
+    // If already admin, do not allow requesting again
+    if (req.user.role === 'admin') {
+      return res.status(400).json({ message: 'You are already an admin' });
+    }
     const existing = await AdminRequest.findOne({ user: req.user._id, status: 'pending' });
     if (existing) return res.status(400).json({ message: 'You already have a pending request' });
+    // If there's an already approved request, avoid duplicates
+    const approved = await AdminRequest.findOne({ user: req.user._id, status: 'approved' }).sort({ createdAt: -1 });
+    if (approved) {
+      return res.status(400).json({ message: 'You already have an approved request awaiting processing' });
+    }
     const r = await AdminRequest.create({ user: req.user._id, note });
     return res.status(201).json({ message: 'Request submitted', request: r });
   } catch (e) {
@@ -85,6 +94,16 @@ router.post('/requests/:id/:action', auth, requirePrincipalAdmin, async (req, re
     if (r.status !== 'pending') return res.status(400).json({ message: 'Request already resolved' });
     r.status = action === 'approve' ? 'approved' : 'rejected';
     await r.save();
+
+    // If approved, auto-close any other pending requests from the same user
+    if (action === 'approve') {
+      try {
+        await AdminRequest.updateMany(
+          { user: r.user, status: 'pending', _id: { $ne: r._id } },
+          { $set: { status: 'rejected' } }
+        );
+      } catch (_) {}
+    }
     // XP: approver gets small XP for handling requests
     try { await awardXP(req.user._id, 5, `admin_request_${action}`, { requestId: String(r._id) }); } catch (_) {}
     let roleUpdate = null;
