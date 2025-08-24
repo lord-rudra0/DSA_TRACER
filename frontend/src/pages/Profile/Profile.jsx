@@ -137,31 +137,49 @@ export default function Profile() {
                 <h1 className="text-2xl font-semibold">{fullName}</h1>
                 <span className="text-gray-500">@{profile.leetcodeUsername}</span>
               </div>
-              {isSelf && (
-                <div className="flex items-center gap-2">
-                  <button
-                    className="px-3 py-1.5 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 text-sm"
-                    disabled={reqSubmitting}
-                    onClick={async () => {
-                      try {
-                        setReqSubmitting(true);
-                        setReqMsg('');
-                        await axios.post('/admin/requests', {});
-                        setReqMsg('Request sent');
-                        const { data } = await axios.get('/admin/requests/mine');
-                        setMyRequests(data.requests || []);
-                      } catch (e) {
-                        setReqMsg(e.response?.data?.message || 'Failed to send request');
-                      } finally {
-                        setReqSubmitting(false);
-                      }
-                    }}
-                  >
-                    {reqSubmitting ? 'Sending…' : 'Request Admin Access'}
-                  </button>
-                  {reqMsg && <span className="text-xs text-gray-600 dark:text-gray-300">{reqMsg}</span>}
-                </div>
-              )}
+              {isSelf && (() => {
+                const isAdmin = profile.role === 'admin';
+                const latestReq = myRequests?.[0];
+                const isPending = latestReq?.status === 'pending';
+                if (isAdmin) {
+                  return (
+                    <span className="px-2 py-1 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 text-xs font-medium">Admin</span>
+                  );
+                }
+                if (isPending) {
+                  return (
+                    <button
+                      className="px-3 py-1.5 rounded bg-gray-300 text-gray-700 dark:bg-gray-800 dark:text-gray-300 text-sm cursor-not-allowed"
+                      disabled
+                    >Request Pending</button>
+                  );
+                }
+                return (
+                  <div className="flex items-center gap-2">
+                    <button
+                      className="px-3 py-1.5 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 text-sm"
+                      disabled={reqSubmitting}
+                      onClick={async () => {
+                        try {
+                          setReqSubmitting(true);
+                          setReqMsg('');
+                          await axios.post('/admin/requests', {});
+                          setReqMsg('Request sent');
+                          const { data } = await axios.get('/admin/requests/mine');
+                          setMyRequests(data.requests || []);
+                        } catch (e) {
+                          setReqMsg(e.response?.data?.message || 'Failed to send request');
+                        } finally {
+                          setReqSubmitting(false);
+                        }
+                      }}
+                    >
+                      {reqSubmitting ? 'Sending…' : 'Request Admin Access'}
+                    </button>
+                    {reqMsg && <span className="text-xs text-gray-600 dark:text-gray-300">{reqMsg}</span>}
+                  </div>
+                );
+              })()}
             </div>
             {isSelf && (myRequests?.length > 0) && (
               <div className="mt-2 text-xs text-gray-600 dark:text-gray-300">
