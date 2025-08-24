@@ -66,6 +66,21 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', env: process.env.NODE_ENV || 'unknown', ts: new Date().toISOString() });
 });
 
+// Also support routes without the /api prefix (for compatibility with clients)
+app.use('/auth', authRoutes);
+app.use('/users', userRoutes);
+app.use('/problems', problemRoutes);
+app.use('/leaderboard', leaderboardRoutes);
+app.use('/contest', contestRoutes);
+app.use('/stats', statsRoutes);
+app.use('/competitions', competitionsRoutes);
+app.use('/admin', adminRoutes);
+app.use('/season', seasonRoutes);
+app.use('/xp', xpRoutes);
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', env: process.env.NODE_ENV || 'unknown', ts: new Date().toISOString() });
+});
+
 // 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({ message: 'Route not found' });
