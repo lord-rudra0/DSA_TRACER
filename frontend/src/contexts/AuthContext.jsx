@@ -4,7 +4,10 @@ import axios from 'axios';
 const AuthContext = createContext();
 
 // Configure axios defaults
-axios.defaults.baseURL = 'http://localhost:5000/api';
+const AUTH_API_BASE = import.meta.env.VITE_API_BASE;
+if (AUTH_API_BASE) {
+  axios.defaults.baseURL = AUTH_API_BASE;
+}
 axios.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
