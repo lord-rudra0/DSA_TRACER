@@ -4,7 +4,7 @@ import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function CompetitionsList() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const isAdmin = user?.role === 'admin';
   const navigate = useNavigate();
   const [modalOpen, setModalOpen] = useState(false);
@@ -40,7 +40,7 @@ export default function CompetitionsList() {
     }
   };
 
-  // Load latest admin request when modal opens
+  // Load latest admin request when modal opens and refresh auth user
   useEffect(() => {
     let canceled = false;
     const load = async () => {
@@ -48,6 +48,8 @@ export default function CompetitionsList() {
       setReqLoading(true);
       setMsg('');
       try {
+        // refresh user role in case it changed
+        try { await refreshUser(); } catch {}
         const { data } = await axios.get('/admin/requests/mine');
         if (!canceled) setLatestReq((data.requests || [])[0] || null);
       } catch (e) {
@@ -59,6 +61,14 @@ export default function CompetitionsList() {
     load();
     return () => { canceled = true; };
   }, [modalOpen]);
+
+  // If user becomes admin while modal is open, auto-close and navigate
+  useEffect(() => {
+    if (modalOpen && user?.role === 'admin') {
+      setModalOpen(false);
+      navigate('/competitions/create');
+    }
+  }, [modalOpen, user?.role]);
 
   return (
     <div className="p-6 space-y-4 relative">
