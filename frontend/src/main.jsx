@@ -17,7 +17,16 @@ if (typeof window !== 'undefined') {
   window.__AXIOS_BASE__ = axios.defaults.baseURL;
 }
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 2 * 60 * 1000,            // 2 minutes considered fresh
+      refetchOnWindowFocus: false,         // don't refetch just on focus
+      refetchIntervalInBackground: false,  // don't run intervals when tab hidden
+      retry: 2,
+    },
+  },
+});
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
