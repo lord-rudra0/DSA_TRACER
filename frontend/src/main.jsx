@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import axios from 'axios'
 import App from './App.jsx'
 import './index.css'
+import { QueryClient, QueryClientProvider } from 'react-query'
 
 // Configure global API base URL for all axios requests
 const apiBase = import.meta.env?.VITE_API_BASE 
@@ -16,8 +17,12 @@ if (typeof window !== 'undefined') {
   window.__AXIOS_BASE__ = axios.defaults.baseURL;
 }
 
+const queryClient = new QueryClient();
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <QueryClientProvider client={queryClient}>
+      <App />
+    </QueryClientProvider>
   </React.StrictMode>
 )
