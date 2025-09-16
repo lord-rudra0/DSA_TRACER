@@ -386,7 +386,24 @@ function TopInterview() {
     for (const m of current) {
       if (!prev.has(m)) {
         // new milestone achieved
-        setNotification({ type: 'milestone', text: `Milestone reached: ${m} solved!` });
+        const text = `Milestone reached: ${m} solved!`;
+        setNotification({ type: 'milestone', text });
+        // persist badge server-side if possible
+        const award = async () => {
+          const badgeName = `Solved ${m}`;
+          const badge = { name: badgeName, description: `Solved ${m} problems`, icon: '🏅' };
+          try {
+            if (user) {
+              await axios.post('/users/badges', badge);
+            } else {
+              setBadges(prev => [ { id: `local-${Date.now()}`, title: badgeName, date: Date.now() }, ...prev ]);
+            }
+          } catch (e) {
+            // fallback to localStorage
+            setBadges(prev => [ { id: `local-${Date.now()}`, title: badgeName, date: Date.now() }, ...prev ]);
+          }
+        };
+        award();
         // auto-clear after 4s
         setTimeout(() => setNotification(null), 4000);
         break;
@@ -439,6 +456,51 @@ function TopInterview() {
     }
   };
 
+  // Persisted badges
+  const BADGE_KEY = 'top150_badges';
+  const [badges, setBadges] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(BADGE_KEY)) || [];
+    } catch (e) { return []; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(BADGE_KEY, JSON.stringify(badges)); } catch (e) {}
+  }, [badges]);
+
+  // When challenge problem is toggled as solved, mark in statusMap and check completion
+  const toggleChallengeProblem = (title) => {
+    toggleStatus(title);
+    // after a small timeout ensure state updated then check
+    setTimeout(() => {
+      const allSolved = challengeProblems.every(p => {
+        const slug = p.titleSlug || slugify(p.title);
+        return serverSolved.has(slug) || statusMap[p.title] === 'solved' || (JSON.parse(localStorage.getItem(STORAGE_KEY)) || {})[p.title] === 'solved';
+      });
+      if (allSolved) {
+        // award a badge for completing a challenge
+        const badgeName = `Challenge x${challengeProblems.length}`;
+        const badgePayload = { name: badgeName, description: `Completed a ${challengeProblems.length}-problem challenge`, icon: '🏁' };
+        (async () => {
+          try {
+            if (user) {
+              await axios.post('/users/badges', badgePayload);
+            } else {
+              const newBadge = { id: `challenge-${Date.now()}`, title: badgeName, date: Date.now() };
+              setBadges(prev => [newBadge, ...prev]);
+            }
+          } catch (e) {
+            const newBadge = { id: `challenge-${Date.now()}`, title: badgeName, date: Date.now() };
+            setBadges(prev => [newBadge, ...prev]);
+          }
+        })();
+        setNotification({ type: 'challenge', text: `Challenge complete! Badge earned.` });
+        setTimeout(() => setNotification(null), 3000);
+        stopChallenge();
+      }
+    }, 200);
+  };
+
   // Manage timer when challengeActive
   useEffect(() => {
     if (challengeActive && challengeTimeLeft > 0) {
@@ -473,6 +535,15 @@ function TopInterview() {
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">Top Interview 150</h1>
+
+      {/* Badges strip */}
+      {badges.length > 0 && (
+        <div className="mb-4 flex items-center gap-3">
+          {badges.map(b => (
+            <div key={b.id} className="px-3 py-1 bg-yellow-50 text-yellow-800 rounded-full text-sm font-medium">{b.title}</div>
+          ))}
+        </div>
+      )}
 
       <div className="mb-6 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center gap-6">
         <div>

@@ -576,6 +576,43 @@ router.get('/dashboard', auth, async (req, res) => {
   }
 });
 
+// Get badges for authenticated user
+router.get('/badges', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('badges');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    return res.json({ badges: user.badges || [] });
+  } catch (err) {
+    console.error('Get badges error:', err);
+    res.status(500).json({ message: 'Server error fetching badges' });
+  }
+});
+
+// Add a badge for authenticated user (idempotent by name)
+router.post('/badges', auth, async (req, res) => {
+  try {
+    const { name, description = '', icon = '' } = req.body;
+    if (!name) return res.status(400).json({ message: 'Badge name is required' });
+
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const exists = user.badges.some(b => b.name === name);
+    if (exists) {
+      return res.json({ message: 'Badge already exists', badge: user.badges.find(b => b.name === name) });
+    }
+
+    const badge = { name, description, icon, unlockedAt: new Date() };
+    user.badges.unshift(badge);
+    await user.save();
+
+    return res.status(201).json({ badge });
+  } catch (err) {
+    console.error('Add badge error:', err);
+    res.status(500).json({ message: 'Server error adding badge' });
+  }
+});
+
 // Get user profile by LeetCode username
 router.get('/profile/:leetcodeUsername', async (req, res) => {
   try {
