@@ -19,6 +19,7 @@ import xpRoutes from './routes/xp.js';
 import leetcodeRoutes from './routes/leetcode.js';
 import challengesRoutes from './routes/challenges.js';
 import feedRoutes from './routes/feed.js';
+import analyticsRoutes from './routes/analytics.js';
 import User from './models/User.js';
 
 dotenv.config();
@@ -74,6 +75,7 @@ app.use('/api/xp', xpRoutes);
 app.use('/api/leetcode', leetcodeRoutes);
 app.use('/api/challenges', challengesRoutes);
 app.use('/api/feed', feedRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

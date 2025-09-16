@@ -3,6 +3,7 @@ import BadgeModal from '../../components/Badges/BadgeModal';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
+import InsightsPanel from '../../components/Insights/InsightsPanel';
 
 export default function Profile() {
   const { leetcodeUsername } = useParams();
@@ -313,6 +314,10 @@ export default function Profile() {
               )}
             </div>
         </section>
+
+        <aside className="rounded-xl bg-white dark:bg-gray-900 shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+          <InsightsPanel />
+        </aside>
 
         <section className="lg:col-span-2 rounded-xl bg-white dark:bg-gray-900 shadow-sm border border-gray-200 dark:border-gray-800 p-6">
           <div className="flex items-center justify-between">

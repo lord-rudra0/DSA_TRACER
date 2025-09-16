@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { Link } from 'react-router-dom';
+import InsightsPanel from '../../components/Insights/InsightsPanel';
 
 // Hard-coded Top Interview 150 list grouped by sections exactly in the order supplied by the user.
 // Each problem shows a "Solution" tag, a difficulty badge, and a Solved/Unsolved toggle.
@@ -670,14 +671,18 @@ function TopInterview() {
       </div>
 
       {/* Goals & Leaderboard */}
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded">
+  <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+  <div className="p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded">
           <div className="text-sm text-gray-500">Goal</div>
           <div className="mt-2 flex items-center gap-2">
             <input type="number" className="input input-bordered w-32" value={goal || ''} onChange={(e) => setGoal(Number(e.target.value))} placeholder="0" />
             <button className="px-3 py-1 bg-indigo-600 text-white rounded" onClick={() => { localStorage.setItem(GOAL_KEY, String(goal || 0)); }}>Save</button>
           </div>
           <div className="mt-3 text-sm text-gray-500">Progress: {Math.min(100, Math.round((solvedCount / (goal || totalCount || 1)) * 100))}%</div>
+        </div>
+
+        <div className="col-span-1">
+          <InsightsPanel />
         </div>
 
         <div className="p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded col-span-1 md:col-span-2">
