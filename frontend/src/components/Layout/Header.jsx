@@ -257,6 +257,14 @@ const Header = () => {
                         Your Profile
                       </Link>
                       <Link
+                        to="/badges"
+                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                        onClick={() => setShowUserMenu(false)}
+                      >
+                        <Award className="h-4 w-4 mr-2" />
+                        Badges
+                      </Link>
+                      <Link
                         to="/settings"
                         className="flex items-center px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                         onClick={() => setShowUserMenu(false)}

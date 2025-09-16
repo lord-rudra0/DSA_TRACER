@@ -27,6 +27,7 @@ import CreateCompetition from './pages/Competitions/CreateCompetition';
 import CompetitionDetail from './pages/Competitions/CompetitionDetail';
 import Admin from './pages/Admin/Admin';
 import TopInterview from './pages/Problems/TopInterview';
+import Badges from './pages/Badges/Badges';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -128,6 +129,11 @@ function App() {
                     <AdminRoute>
                       <Admin />
                     </AdminRoute>
+                  } />
+                  <Route path="badges" element={
+                    <ProtectedRoute>
+                      <Badges />
+                    </ProtectedRoute>
                   } />
                   {/* Contact Admin page removed */}
                 </Route>
