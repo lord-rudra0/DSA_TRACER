@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { Link } from 'react-router-dom';
@@ -290,6 +290,14 @@ function TopInterview() {
   });
 
   const [serverSolved, setServerSolved] = useState(new Set());
+  const [search, setSearch] = useState('');
+  const [difficultyFilter, setDifficultyFilter] = useState('All');
+  const [challengeActive, setChallengeActive] = useState(false);
+  const [challengeProblems, setChallengeProblems] = useState([]);
+  const [challengeTimeLeft, setChallengeTimeLeft] = useState(0); // seconds
+  const [challengeTotalTime, setChallengeTotalTime] = useState(0);
+  const challengeTimerRef = useRef(null);
+  const [notification, setNotification] = useState(null);
 
   // simple slugify that matches LeetCode titleSlug conventions approximately
   const slugify = (title) => {
@@ -367,6 +375,94 @@ function TopInterview() {
     return acc + (isSolved ? xpForDifficulty(p.difficulty) : 0);
   }, 0);
 
+  // Achievements: milestones by solved count
+  const MILESTONES = [10, 25, 50, 100, 150];
+  const earnedMilestones = MILESTONES.filter(m => solvedCount >= m);
+  const prevEarnedRef = useRef(new Set(earnedMilestones));
+
+  useEffect(() => {
+    const prev = prevEarnedRef.current;
+    const current = new Set(earnedMilestones);
+    for (const m of current) {
+      if (!prev.has(m)) {
+        // new milestone achieved
+        setNotification({ type: 'milestone', text: `Milestone reached: ${m} solved!` });
+        // auto-clear after 4s
+        setTimeout(() => setNotification(null), 4000);
+        break;
+      }
+    }
+    prevEarnedRef.current = current;
+  }, [earnedMilestones.join(',')]);
+
+  // Helper: compute solved count for a section
+  const solvedCountForSection = (section) => {
+    return section.problems.filter(p => {
+      const slug = p.titleSlug || slugify(p.title);
+      return serverSolved.has(slug) || statusMap[p.title] === 'solved';
+    }).length;
+  };
+
+  // Start a challenge with N problems and T seconds (defaults)
+  const startChallenge = (numProblems = 5, timeSeconds = 600) => {
+    // pick random problems (prefer unsolved)
+    const pool = allProblemsFlat.slice();
+    // prefer unsolved first
+    pool.sort((a, b) => {
+      const sa = serverSolved.has(a.titleSlug || slugify(a.title)) || statusMap[a.title] === 'solved' ? 1 : 0;
+      const sb = serverSolved.has(b.titleSlug || slugify(b.title)) || statusMap[b.title] === 'solved' ? 1 : 0;
+      return sa - sb; // unsolved earlier
+    });
+    const chosen = [];
+    const used = new Set();
+    for (let i = 0; i < pool.length && chosen.length < numProblems; i++) {
+      const cand = pool[i];
+      const key = cand.title;
+      if (used.has(key)) continue;
+      used.add(key);
+      chosen.push(cand);
+    }
+    setChallengeProblems(chosen);
+    setChallengeTotalTime(timeSeconds);
+    setChallengeTimeLeft(timeSeconds);
+    setChallengeActive(true);
+  };
+
+  const stopChallenge = () => {
+    setChallengeActive(false);
+    setChallengeProblems([]);
+    setChallengeTimeLeft(0);
+    setChallengeTotalTime(0);
+    if (challengeTimerRef.current) {
+      clearInterval(challengeTimerRef.current);
+      challengeTimerRef.current = null;
+    }
+  };
+
+  // Manage timer when challengeActive
+  useEffect(() => {
+    if (challengeActive && challengeTimeLeft > 0) {
+      challengeTimerRef.current = setInterval(() => {
+        setChallengeTimeLeft(t => {
+          if (t <= 1) {
+            // time up
+            clearInterval(challengeTimerRef.current);
+            challengeTimerRef.current = null;
+            setNotification({ type: 'challenge', text: `Challenge ended` });
+            setTimeout(() => setNotification(null), 3000);
+            setChallengeActive(false);
+            return 0;
+          }
+          return t - 1;
+        });
+      }, 1000);
+      return () => {
+        if (challengeTimerRef.current) clearInterval(challengeTimerRef.current);
+      };
+    }
+    return undefined;
+  }, [challengeActive]);
+
   const renderBadge = (difficulty) => {
     const base = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium';
     if (difficulty === 'Easy') return <span className={`${base} bg-green-50 text-green-700`}>Easy</span>;
@@ -394,69 +490,168 @@ function TopInterview() {
         <div className="ml-auto text-sm text-gray-400">Server-synced shown first</div>
       </div>
 
-      {numberedSections.map((section) => (
-        <section key={section.title} className="mb-8">
-          <h2 className="text-xl font-semibold mb-4">{section.title}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {section.problems.map(({ title, difficulty, idx, titleSlug }) => {
-                        // Determine status: server-solved takes precedence, otherwise user toggles
-                        const slug = (titleSlug || slugify(title));
-                        const isSolvedOnServer = serverSolved.has(slug);
-                        const status = isSolvedOnServer ? 'solved' : (statusMap[title] || 'unsolved');
-              return (
-                <div
-                  key={title}
-                  className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm flex flex-col justify-between"
-                >
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                      <span className="inline-block w-7 font-mono text-primary-600">{idx}.</span>{' '}
-                      {/** external LeetCode link opens in new tab (title clickable) */}
-                      <a
-                        href={`https://leetcode.com/problems/${slug}/`}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        className="hover:underline"
-                        onClick={(e) => e.stopPropagation()}
+      {/* Overall progress bar */}
+      <div className="mb-4">
+        <div className="text-sm text-gray-500 mb-2">Overall Progress</div>
+        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+          <div
+            className="h-3 bg-green-500"
+            style={{ width: `${Math.round((solvedCount / totalCount) * 100)}%` }}
+          />
+        </div>
+        <div className="text-xs text-gray-500 mt-1">{Math.round((solvedCount / totalCount) * 100)}% completed</div>
+      </div>
+
+      <div className="mb-6 flex flex-wrap gap-4 items-center">
+        <input
+          type="text"
+          className="input input-bordered w-64"
+          placeholder="Search by title or slug..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        <select
+          className="input input-bordered w-40"
+          value={difficultyFilter}
+          onChange={e => setDifficultyFilter(e.target.value)}
+        >
+          <option value="All">All Difficulties</option>
+          <option value="Easy">Easy</option>
+          <option value="Medium">Medium</option>
+          <option value="Hard">Hard</option>
+        </select>
+      </div>
+
+      {/* Challenge mode controls */}
+      <div className="mb-6 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+        <div className="flex items-center gap-4">
+          <div>
+            <div className="text-sm text-gray-500">Challenge Mode</div>
+            <div className="text-xs text-gray-400">Quick timed practice</div>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            {!challengeActive ? (
+              <>
+                <button className="px-3 py-1 bg-blue-600 text-white rounded" onClick={() => startChallenge(5, 600)}>Start 5-problem (10m)</button>
+                <button className="px-3 py-1 bg-blue-600 text-white rounded" onClick={() => startChallenge(10, 900)}>Start 10-problem (15m)</button>
+              </>
+            ) : (
+              <>
+                <div className="text-sm">Time left: <span className="font-mono">{Math.floor(challengeTimeLeft/60)}:{String(challengeTimeLeft%60).padStart(2,'0')}</span></div>
+                <button className="px-3 py-1 bg-red-600 text-white rounded" onClick={stopChallenge}>Stop</button>
+              </>
+            )}
+          </div>
+        </div>
+        {challengeActive && challengeProblems.length > 0 && (
+          <div className="mt-4">
+            <div className="text-sm text-gray-600 mb-2">Problems in this challenge</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+              {challengeProblems.map(p => (
+                <div key={p.title} className="p-2 border rounded bg-gray-50 dark:bg-gray-900">
+                  <div className="text-xs font-mono text-primary-600">{p.idx}.</div>
+                  <div className="text-sm font-medium">{p.title}</div>
+                  <div className="text-xs text-gray-500">{p.difficulty}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Notification / badge area */}
+      {notification && (
+        <div className="fixed bottom-6 right-6 z-50 p-3 rounded shadow-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+          <div className="text-sm font-medium">{notification.text}</div>
+        </div>
+      )}
+
+      {numberedSections.map((section) => {
+        // Filter problems by search and difficulty
+        const filteredProblems = section.problems.filter(({ title, difficulty, titleSlug }) => {
+          const searchLower = search.trim().toLowerCase();
+          const matchesSearch =
+            !searchLower ||
+            title.toLowerCase().includes(searchLower) ||
+            (titleSlug && titleSlug.toLowerCase().includes(searchLower));
+          const matchesDifficulty =
+            difficultyFilter === 'All' || difficulty === difficultyFilter;
+          return matchesSearch && matchesDifficulty;
+        });
+        if (filteredProblems.length === 0) return null;
+        return (
+          <section key={section.title} className="mb-8">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-xl font-semibold">{section.title}</h2>
+              <div className="text-sm text-gray-500">{solvedCountForSection(section)} / {section.problems.length}</div>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden mb-3">
+              <div
+                className="h-2 bg-green-500"
+                style={{ width: `${Math.round((solvedCountForSection(section) / section.problems.length) * 100)}%` }}
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {filteredProblems.map(({ title, difficulty, idx, titleSlug }) => {
+                // Determine status: server-solved takes precedence, otherwise user toggles
+                const slug = (titleSlug || slugify(title));
+                const isSolvedOnServer = serverSolved.has(slug);
+                const status = isSolvedOnServer ? 'solved' : (statusMap[title] || 'unsolved');
+                return (
+                  <div
+                    key={title}
+                    className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm flex flex-col justify-between"
+                  >
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                        <span className="inline-block w-7 font-mono text-primary-600">{idx}.</span>{' '}
+                        {/** external LeetCode link opens in new tab (title clickable) */}
+                        <a
+                          href={`https://leetcode.com/problems/${slug}/`}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          className="hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {title}
+                        </a>
+                        {/** explicit external icon as well */}
+                        <a
+                          href={`https://leetcode.com/problems/${slug}/`}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          className="ml-2 text-xs text-blue-500 hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          ↗
+                        </a>
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-xs font-medium">Solution</span>
+                        {renderBadge(difficulty)}
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between">
+                      <button
+                        onClick={() => toggleStatus(title)}
+                        className={
+                          'px-3 py-1 text-xs rounded font-medium ' +
+                          (status === 'solved'
+                            ? 'bg-green-600 text-white hover:bg-green-700'
+                            : 'bg-gray-100 text-gray-800 hover:bg-gray-200')
+                        }
                       >
-                        {title}
-                      </a>
-                      {/** explicit external icon as well */}
-                      <a
-                        href={`https://leetcode.com/problems/${slug}/`}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        className="ml-2 text-xs text-blue-500 hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        ↗
-                      </a>
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-xs font-medium">Solution</span>
-                      {renderBadge(difficulty)}
+                        {status === 'solved' ? 'Solved' : 'Unsolved'}
+                      </button>
+                      <span className="text-xs text-gray-500">{difficulty}</span>
                     </div>
                   </div>
-                  <div className="mt-3 flex items-center justify-between">
-                    <button
-                      onClick={() => toggleStatus(title)}
-                      className={
-                        'px-3 py-1 text-xs rounded font-medium ' +
-                        (status === 'solved'
-                          ? 'bg-green-600 text-white hover:bg-green-700'
-                          : 'bg-gray-100 text-gray-800 hover:bg-gray-200')
-                      }
-                    >
-                      {status === 'solved' ? 'Solved' : 'Unsolved'}
-                    </button>
-                    <span className="text-xs text-gray-500">{difficulty}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      ))}
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }
