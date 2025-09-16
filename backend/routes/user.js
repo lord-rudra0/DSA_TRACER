@@ -634,6 +634,27 @@ router.get('/profile/:leetcodeUsername', async (req, res) => {
   }
 });
 
+// Get solved problems (titleSlugs) for current authenticated user
+router.get('/solved', auth, async (req, res) => {
+  try {
+    // Find distinct problem IDs for accepted submissions by this user
+    const solvedProblemIds = await Submission.distinct('problem', { user: req.user._id, status: 'Accepted' });
+
+    if (!Array.isArray(solvedProblemIds) || solvedProblemIds.length === 0) {
+      return res.json({ solved: [] });
+    }
+
+    // Lookup the Problem documents to get titleSlugs
+    const problems = await Problem.find({ _id: { $in: solvedProblemIds } }).select('titleSlug title');
+    const titleSlugs = problems.map(p => p.titleSlug).filter(Boolean);
+
+    return res.json({ solved: Array.from(new Set(titleSlugs)) });
+  } catch (error) {
+    console.error('Get solved problems error:', error);
+    res.status(500).json({ message: 'Server error fetching solved problems' });
+  }
+});
+
 // Add/remove friend
 router.post('/friends/:action/:userId', auth, async (req, res) => {
   try {
