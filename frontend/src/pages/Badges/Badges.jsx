@@ -1,37 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useBadges } from '../../contexts/BadgeContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
-import { Award } from 'lucide-react';
+import BadgeCard from '../../components/Badges/BadgeCard';
+import BadgeModal from '../../components/Badges/BadgeModal';
 
-function BadgeModal({ badge, onClose }) {
-  if (!badge) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black opacity-40" onClick={onClose} />
-      <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-6 z-10">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-yellow-50 flex items-center justify-center text-3xl">{badge.icon || '🏅'}</div>
-          <div>
-            <h3 className="text-lg font-semibold">{badge.name || badge.title}</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{badge.description}</p>
-            {badge.unlockedAt && (
-              <p className="text-xs text-gray-400 mt-2">Unlocked: {new Date(badge.unlockedAt).toLocaleString()}</p>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-6 text-right">
-          <button onClick={onClose} className="px-4 py-2 rounded bg-gray-100 dark:bg-gray-700">Close</button>
-        </div>
-      </div>
-    </div>
-  );
-}
+// Canonical badge definitions (server also has logic, but frontend shows locked badges too)
+const BADGE_DEFINITIONS = [
+  { name: 'First Steps', description: 'Solved your first problem', icon: '🎯', slug: 'first-steps', criteria: (s) => s.totalProblems >= 1 },
+  { name: 'Getting Warmed Up', description: 'Solved 10 problems', icon: '🔥', slug: 'solved-10', criteria: (s) => s.totalProblems >= 10 },
+  { name: 'Problem Solver', description: 'Solved 50 problems', icon: '💪', slug: 'solved-50', criteria: (s) => s.totalProblems >= 50 },
+  { name: 'Code Master', description: 'Solved 100 problems', icon: '👑', slug: 'solved-100', criteria: (s) => s.totalProblems >= 100 },
+  { name: 'Streak Master', description: 'Maintained a 7-day streak', icon: '⚡', slug: 'streak-7', criteria: (s) => s.maxStreak >= 7 },
+  { name: 'Dedication', description: 'Maintained a 30-day streak', icon: '🏆', slug: 'streak-30', criteria: (s) => s.maxStreak >= 30 },
+  { name: 'Contest Warrior', description: 'Participated in 5 contests', icon: '⚔️', slug: 'contest-5', criteria: (s) => s.contestsAttended >= 5 },
+  { name: 'Polyglot', description: 'Solved problems in 5 different languages', icon: '🌍', slug: 'polyglot-5', criteria: (s) => s.languageCount >= 5 }
+];
 
 const Badges = () => {
-  const { badges, loading } = useBadges();
+  const { badges = [], loading } = useBadges();
   const { user } = useAuth();
   const [selected, setSelected] = useState(null);
+
+  const statsSnapshot = useMemo(() => ({
+    totalProblems: user?.totalProblems || 0,
+    maxStreak: user?.maxStreak || 0,
+    contestsAttended: user?.contestsAttended || 0,
+    languageCount: (user?.preferredLanguages || []).length
+  }), [user]);
+
+  // Compute which definitions are unlocked locally (for preview)
+  const unlockedNames = new Set((badges || []).map(b => b.name));
 
   return (
     <div className="p-6">
@@ -40,27 +38,34 @@ const Badges = () => {
         <div className="text-sm text-gray-500">{user?.leetcodeUsername ? `Viewing for ${user.leetcodeUsername}` : 'Local badges'}</div>
       </div>
 
-      <div className="card p-6">
-        <div className="mb-4 text-sm text-gray-600">Your earned badges are shown below. Click a badge for details.</div>
-
+      <div className="card p-6 mb-6">
+        <div className="mb-3 text-sm text-gray-600">Earned badges</div>
         {loading && <div className="text-sm text-gray-500">Loading badges…</div>}
-
-        {!loading && badges.length === 0 && (
-          <div className="text-sm text-gray-500">No badges earned yet — keep solving!</div>
-        )}
-
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {badges.map((b, i) => (
-            <button
-              key={b.id || `${b.name}-${i}`}
-              onClick={() => setSelected(b)}
-              className="flex flex-col items-center gap-2 p-4 rounded-lg bg-gray-50 dark:bg-gray-900 border hover:shadow-md"
-            >
-              <div className="w-16 h-16 rounded-full bg-yellow-50 flex items-center justify-center text-2xl">{b.icon || '🏅'}</div>
-              <div className="text-sm font-medium text-gray-900 dark:text-white text-center">{b.name || b.title}</div>
-              {b.unlockedAt && <div className="text-xs text-gray-400">{new Date(b.unlockedAt).toLocaleDateString()}</div>}
-            </button>
+          {(badges || []).map((b, i) => (
+            <BadgeCard key={b.id || `${b.name}-${i}`} badge={b} onClick={() => setSelected(b)} />
           ))}
+          {(badges || []).length === 0 && !loading && (
+            <div className="text-sm text-gray-500">No badges earned yet — keep solving!</div>
+          )}
+        </div>
+      </div>
+
+      <div className="card p-6">
+        <div className="mb-3 text-sm text-gray-600">Available badges</div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          {BADGE_DEFINITIONS.map((def) => {
+            const unlocked = unlockedNames.has(def.name) || def.criteria(statsSnapshot);
+            // For simple progress, compute a rough percent for problem count-based badges
+            let progress = undefined;
+            if (def.slug.startsWith('solved-')) {
+              const target = Number(def.slug.split('-')[1]) || 0;
+              progress = Math.min(100, (statsSnapshot.totalProblems / target) * 100);
+            }
+            return (
+              <BadgeCard key={def.slug} badge={def} locked={!unlocked} onClick={() => setSelected(def)} progress={!unlocked ? progress : undefined} />
+            );
+          })}
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import BadgeModal from '../../components/Badges/BadgeModal';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
@@ -297,17 +298,17 @@ export default function Profile() {
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
         <section className="rounded-xl bg-white dark:bg-gray-900 shadow-sm border border-gray-200 dark:border-gray-800 p-6">
           <h2 className="text-lg font-semibold">Badges</h2>
-          <div className="mt-3 flex flex-wrap gap-3">
-            {profile.badges?.length ? (
-              profile.badges.map((b, idx) => (
-                <div key={idx} className="px-3 py-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-sm">
-                  <span className="mr-2">{b.icon || '🏅'}</span>{b.name}
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500">No badges yet.</p>
-            )}
-          </div>
+            <div className="mt-3 flex flex-wrap gap-3">
+              {profile.badges?.length ? (
+                profile.badges.map((b, idx) => (
+                  <button key={idx} onClick={() => setSelectedBadge(b)} className="px-3 py-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-sm flex items-center gap-2">
+                    <span className="mr-2">{b.icon || '🏅'}</span>{b.name}
+                  </button>
+                ))
+              ) : (
+                <p className="text-gray-500">No badges yet.</p>
+              )}
+            </div>
         </section>
 
         <section className="lg:col-span-2 rounded-xl bg-white dark:bg-gray-900 shadow-sm border border-gray-200 dark:border-gray-800 p-6">
@@ -385,6 +386,7 @@ export default function Profile() {
           </section>
         </div>
       )}
+      <BadgeModal badge={selectedBadge} onClose={() => setSelectedBadge(null)} />
     </div>
   );
 }
