@@ -27,6 +27,9 @@ export default function Profile() {
   const [xpHasNext, setXpHasNext] = useState(false);
   const xpLimit = 10;
 
+  // Selected badge for modal view
+  const [selectedBadge, setSelectedBadge] = useState(null);
+
   const isSelf = useMemo(() => !leetcodeUsername || leetcodeUsername === me?.leetcodeUsername, [leetcodeUsername, me?.leetcodeUsername]);
 
   useEffect(() => {

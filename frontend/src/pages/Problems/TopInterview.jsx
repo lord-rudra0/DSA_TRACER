@@ -298,6 +298,12 @@ function TopInterview() {
   const [challengeTotalTime, setChallengeTotalTime] = useState(0);
   const challengeTimerRef = useRef(null);
   const [notification, setNotification] = useState(null);
+  const [challengeHistory, setChallengeHistory] = useState([]);
+  const [challengeLeaderboard, setChallengeLeaderboard] = useState([]);
+  const GOAL_KEY = 'top150_goal';
+  const [goal, setGoal] = useState(() => {
+    try { return Number(localStorage.getItem(GOAL_KEY)) || 0; } catch { return 0; }
+  });
 
   // simple slugify that matches LeetCode titleSlug conventions approximately
   const slugify = (title) => {
@@ -478,7 +484,7 @@ function TopInterview() {
         return serverSolved.has(slug) || statusMap[p.title] === 'solved' || (JSON.parse(localStorage.getItem(STORAGE_KEY)) || {})[p.title] === 'solved';
       });
       if (allSolved) {
-        // award a badge for completing a challenge
+        // award a badge for completing a challenge and record the completion
         const badgeName = `Challenge x${challengeProblems.length}`;
         const badgePayload = { name: badgeName, description: `Completed a ${challengeProblems.length}-problem challenge`, icon: '🏁' };
         (async () => {
@@ -496,6 +502,28 @@ function TopInterview() {
         })();
         setNotification({ type: 'challenge', text: `Challenge complete! Badge earned.` });
         setTimeout(() => setNotification(null), 3000);
+        // Record challenge completion to backend if possible
+        (async () => {
+          const payload = {
+            problems: challengeProblems.map(p => ({ titleSlug: p.titleSlug || slugify(p.title), title: p.title, difficulty: p.difficulty })),
+            numProblems: challengeProblems.length,
+            timeTakenSeconds: challengeTotalTime - challengeTimeLeft,
+            timeLimitSeconds: challengeTotalTime,
+            success: true
+          };
+          try {
+            await axios.post('/challenges/complete', payload);
+            // refresh history and leaderboard
+            fetchChallengeHistory();
+            fetchChallengeLeaderboard();
+          } catch (e) {
+            // fallback: persist locally
+            const local = JSON.parse(localStorage.getItem('local_challenges') || '[]');
+            local.unshift({ ...payload, createdAt: Date.now() });
+            localStorage.setItem('local_challenges', JSON.stringify(local));
+            setChallengeHistory(prev => [{ ...payload, _id: `local-${Date.now()}`, createdAt: Date.now() }, ...prev]);
+          }
+        })();
         stopChallenge();
       }
     }, 200);
@@ -513,6 +541,26 @@ function TopInterview() {
             setNotification({ type: 'challenge', text: `Challenge ended` });
             setTimeout(() => setNotification(null), 3000);
             setChallengeActive(false);
+            // record failure if user attempted
+            const payload = {
+              problems: challengeProblems.map(p => ({ titleSlug: p.titleSlug || slugify(p.title), title: p.title, difficulty: p.difficulty })),
+              numProblems: challengeProblems.length,
+              timeTakenSeconds: challengeTotalTime - 0,
+              timeLimitSeconds: challengeTotalTime,
+              success: false
+            };
+            (async () => {
+              try {
+                await axios.post('/challenges/complete', payload);
+                fetchChallengeHistory();
+                fetchChallengeLeaderboard();
+              } catch (e) {
+                const local = JSON.parse(localStorage.getItem('local_challenges') || '[]');
+                local.unshift({ ...payload, createdAt: Date.now() });
+                localStorage.setItem('local_challenges', JSON.stringify(local));
+                setChallengeHistory(prev => [{ ...payload, _id: `local-${Date.now()}`, createdAt: Date.now() }, ...prev]);
+              }
+            })();
             return 0;
           }
           return t - 1;
@@ -524,6 +572,34 @@ function TopInterview() {
     }
     return undefined;
   }, [challengeActive]);
+
+  // Fetch challenge history & leaderboard (with graceful local fallback)
+  const fetchChallengeHistory = async () => {
+    try {
+      const resp = await axios.get('/challenges/history');
+      setChallengeHistory(resp.data.items || []);
+    } catch (e) {
+      // local fallback
+      const local = JSON.parse(localStorage.getItem('local_challenges') || '[]');
+      setChallengeHistory(local);
+    }
+  };
+
+  const fetchChallengeLeaderboard = async () => {
+    try {
+      const resp = await axios.get('/challenges/leaderboard');
+      setChallengeLeaderboard(resp.data.rows || []);
+    } catch (e) {
+      setChallengeLeaderboard([]);
+    }
+  };
+
+  useEffect(() => { fetchChallengeHistory(); fetchChallengeLeaderboard(); }, []);
+
+  // Goals persistence
+  useEffect(() => {
+    try { localStorage.setItem(GOAL_KEY, String(goal || 0)); } catch (e) {}
+  }, [goal]);
 
   const renderBadge = (difficulty) => {
     const base = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium';
@@ -591,6 +667,63 @@ function TopInterview() {
           <option value="Medium">Medium</option>
           <option value="Hard">Hard</option>
         </select>
+      </div>
+
+      {/* Goals & Leaderboard */}
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded">
+          <div className="text-sm text-gray-500">Goal</div>
+          <div className="mt-2 flex items-center gap-2">
+            <input type="number" className="input input-bordered w-32" value={goal || ''} onChange={(e) => setGoal(Number(e.target.value))} placeholder="0" />
+            <button className="px-3 py-1 bg-indigo-600 text-white rounded" onClick={() => { localStorage.setItem(GOAL_KEY, String(goal || 0)); }}>Save</button>
+          </div>
+          <div className="mt-3 text-sm text-gray-500">Progress: {Math.min(100, Math.round((solvedCount / (goal || totalCount || 1)) * 100))}%</div>
+        </div>
+
+        <div className="p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded col-span-1 md:col-span-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm text-gray-500">Challenge History</div>
+              <div className="text-xs text-gray-400">Recent attempts (local & server)</div>
+            </div>
+            <button className="text-xs text-blue-600" onClick={() => fetchChallengeHistory()}>Refresh</button>
+          </div>
+          <div className="mt-3 space-y-2">
+            {challengeHistory.length === 0 ? (
+              <div className="text-sm text-gray-500">No challenge history yet.</div>
+            ) : (
+              challengeHistory.slice(0,5).map((h, i) => (
+                <div key={h._id || i} className="flex items-center justify-between p-2 border rounded">
+                  <div className="text-sm">
+                    <div className="font-medium">{h.numProblems} problems • {h.success ? 'Success' : 'Incomplete'}</div>
+                    <div className="text-xs text-gray-500">{h.timeTakenSeconds}s / {h.timeLimitSeconds}s • {new Date(h.createdAt).toLocaleString()}</div>
+                  </div>
+                  <div className="text-sm font-medium text-indigo-600">+{h.xpAwarded || 0} XP</div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Leaderboard */}
+      <div className="mb-6 p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded">
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-500">Challenge Leaderboard</div>
+          <button className="text-xs text-blue-600" onClick={() => fetchChallengeLeaderboard()}>Refresh</button>
+        </div>
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {challengeLeaderboard.length === 0 ? (
+            <div className="text-sm text-gray-500">No leaderboard data yet.</div>
+          ) : (
+            challengeLeaderboard.slice(0,6).map((r, idx) => (
+              <div key={idx} className="p-3 border rounded">
+                <div className="font-medium">{r.user?.leetcodeUsername || r.user?._id}</div>
+                <div className="text-xs text-gray-500">Completions: {r.completions} • Successes: {r.successes}</div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       {/* Challenge mode controls */}
