@@ -13,266 +13,266 @@ const SECTIONS = [
   {
     title: 'Array / String',
     problems: [
-      ['Merge Sorted Array', 'Easy'],
-      ['Remove Element', 'Easy'],
-      ['Remove Duplicates from Sorted Array', 'Easy'],
-      ['Remove Duplicates from Sorted Array II', 'Medium'],
-      ['Majority Element', 'Easy'],
-      ['Rotate Array', 'Medium'],
-      ['Best Time to Buy and Sell Stock', 'Easy'],
-      ['Best Time to Buy and Sell Stock II', 'Medium'],
-      ['Jump Game', 'Medium'],
-      ['Jump Game II', 'Medium'],
-      ['H-Index', 'Medium'],
-      ['Insert Delete GetRandom O(1)', 'Medium'],
-      ['Product of Array Except Self', 'Medium'],
-      ['Gas Station', 'Medium'],
-      ['Candy', 'Hard'],
-      ['Trapping Rain Water', 'Hard'],
-      ['Roman to Integer', 'Easy'],
-      ['Integer to Roman', 'Medium'],
-      ['Length of Last Word', 'Easy'],
-      ['Longest Common Prefix', 'Easy'],
-      ['Reverse Words in a String', 'Medium'],
-      ['Zigzag Conversion', 'Medium'],
-      ['Find the Index of the First Occurrence in a String', 'Easy'],
-      ['Text Justification', 'Hard']
+      ['Merge Sorted Array', 'Easy', 'merge-sorted-array'],
+      ['Remove Element', 'Easy', 'remove-element'],
+      ['Remove Duplicates from Sorted Array', 'Easy', 'remove-duplicates-from-sorted-array'],
+      ['Remove Duplicates from Sorted Array II', 'Medium', 'remove-duplicates-from-sorted-array-ii'],
+      ['Majority Element', 'Easy', 'majority-element'],
+      ['Rotate Array', 'Medium', 'rotate-array'],
+      ['Best Time to Buy and Sell Stock', 'Easy', 'best-time-to-buy-and-sell-stock'],
+      ['Best Time to Buy and Sell Stock II', 'Medium', 'best-time-to-buy-and-sell-stock-ii'],
+      ['Jump Game', 'Medium', 'jump-game'],
+      ['Jump Game II', 'Medium', 'jump-game-ii'],
+      ['H-Index', 'Medium', 'h-index'],
+      ['Insert Delete GetRandom O(1)', 'Medium', 'insert-delete-getrandom-o1'],
+      ['Product of Array Except Self', 'Medium', 'product-of-array-except-self'],
+      ['Gas Station', 'Medium', 'gas-station'],
+      ['Candy', 'Hard', 'candy'],
+      ['Trapping Rain Water', 'Hard', 'trapping-rain-water'],
+      ['Roman to Integer', 'Easy', 'roman-to-integer'],
+      ['Integer to Roman', 'Medium', 'integer-to-roman'],
+      ['Length of Last Word', 'Easy', 'length-of-last-word'],
+      ['Longest Common Prefix', 'Easy', 'longest-common-prefix'],
+      ['Reverse Words in a String', 'Medium', 'reverse-words-in-a-string'],
+      ['Zigzag Conversion', 'Medium', 'zigzag-conversion'],
+      ['Find the Index of the First Occurrence in a String', 'Easy', 'find-the-index-of-the-first-occurrence-in-a-string'],
+      ['Text Justification', 'Hard', 'text-justification']
     ]
   },
   {
     title: 'Two Pointers',
     problems: [
-      ['Valid Palindrome', 'Easy'],
-      ['Is Subsequence', 'Easy'],
-      ['Two Sum II - Input Array Is Sorted', 'Medium'],
-      ['Container With Most Water', 'Medium'],
-      ['3Sum', 'Medium']
+      ['Valid Palindrome', 'Easy', 'valid-palindrome'],
+      ['Is Subsequence', 'Easy', 'is-subsequence'],
+      ['Two Sum II - Input Array Is Sorted', 'Medium', 'two-sum-ii-input-array-is-sorted'],
+      ['Container With Most Water', 'Medium', 'container-with-most-water'],
+      ['3Sum', 'Medium', '3sum']
     ]
   },
   {
     title: 'Sliding Window',
     problems: [
-      ['Minimum Size Subarray Sum', 'Medium'],
-      ['Longest Substring Without Repeating Characters', 'Medium'],
-      ['Substring with Concatenation of All Words', 'Hard'],
-      ['Minimum Window Substring', 'Hard']
+      ['Minimum Size Subarray Sum', 'Medium', 'minimum-size-subarray-sum'],
+      ['Longest Substring Without Repeating Characters', 'Medium', 'longest-substring-without-repeating-characters'],
+      ['Substring with Concatenation of All Words', 'Hard', 'substring-with-concatenation-of-all-words'],
+      ['Minimum Window Substring', 'Hard', 'minimum-window-substring']
     ]
   },
   {
     title: 'Matrix',
     problems: [
-      ['Valid Sudoku', 'Medium'],
-      ['Spiral Matrix', 'Medium'],
-      ['Rotate Image', 'Medium'],
-      ['Set Matrix Zeroes', 'Medium'],
-      ['Game of Life', 'Medium']
+      ['Valid Sudoku', 'Medium', 'valid-sudoku'],
+      ['Spiral Matrix', 'Medium', 'spiral-matrix'],
+      ['Rotate Image', 'Medium', 'rotate-image'],
+      ['Set Matrix Zeroes', 'Medium', 'set-matrix-zeroes'],
+      ['Game of Life', 'Medium', 'game-of-life']
     ]
   },
   {
     title: 'Hashmap',
     problems: [
-      ['Ransom Note', 'Easy'],
-      ['Isomorphic Strings', 'Easy'],
-      ['Word Pattern', 'Easy'],
-      ['Valid Anagram', 'Easy'],
-      ['Group Anagrams', 'Medium'],
-      ['Two Sum', 'Easy'],
-      ['Happy Number', 'Easy'],
-      ['Contains Duplicate II', 'Easy'],
-      ['Longest Consecutive Sequence', 'Medium']
+      ['Ransom Note', 'Easy', 'ransom-note'],
+      ['Isomorphic Strings', 'Easy', 'isomorphic-strings'],
+      ['Word Pattern', 'Easy', 'word-pattern'],
+      ['Valid Anagram', 'Easy', 'valid-anagram'],
+      ['Group Anagrams', 'Medium', 'group-anagrams'],
+      ['Two Sum', 'Easy', 'two-sum'],
+      ['Happy Number', 'Easy', 'happy-number'],
+      ['Contains Duplicate II', 'Easy', 'contains-duplicate-ii'],
+      ['Longest Consecutive Sequence', 'Medium', 'longest-consecutive-sequence']
     ]
   },
   {
     title: 'Intervals',
     problems: [
-      ['Summary Ranges', 'Easy'],
-      ['Merge Intervals', 'Medium'],
-      ['Insert Interval', 'Medium'],
-      ['Minimum Number of Arrows to Burst Balloons', 'Medium']
+      ['Summary Ranges', 'Easy', 'summary-ranges'],
+      ['Merge Intervals', 'Medium', 'merge-intervals'],
+      ['Insert Interval', 'Medium', 'insert-interval'],
+      ['Minimum Number of Arrows to Burst Balloons', 'Medium', 'minimum-number-of-arrows-to-burst-balloons']
     ]
   },
   {
     title: 'Stack',
     problems: [
-      ['Valid Parentheses', 'Easy'],
-      ['Simplify Path', 'Medium'],
-      ['Min Stack', 'Medium'],
-      ['Evaluate Reverse Polish Notation', 'Medium'],
-      ['Basic Calculator', 'Hard']
+      ['Valid Parentheses', 'Easy', 'valid-parentheses'],
+      ['Simplify Path', 'Medium', 'simplify-path'],
+      ['Min Stack', 'Medium', 'min-stack'],
+      ['Evaluate Reverse Polish Notation', 'Medium', 'evaluate-reverse-polish-notation'],
+      ['Basic Calculator', 'Hard', 'basic-calculator']
     ]
   },
   {
     title: 'Linked List',
     problems: [
-      ['Linked List Cycle', 'Easy'],
-      ['Add Two Numbers', 'Medium'],
-      ['Merge Two Sorted Lists', 'Easy'],
-      ['Copy List with Random Pointer', 'Medium'],
-      ['Reverse Linked List II', 'Medium'],
-      ['Reverse Nodes in k-Group', 'Hard'],
-      ['Remove Nth Node From End of List', 'Medium'],
-      ['Remove Duplicates from Sorted List II', 'Medium'],
-      ['Rotate List', 'Medium'],
-      ['Partition List', 'Medium'],
-      ['LRU Cache', 'Medium']
+      ['Linked List Cycle', 'Easy', 'linked-list-cycle'],
+      ['Add Two Numbers', 'Medium', 'add-two-numbers'],
+      ['Merge Two Sorted Lists', 'Easy', 'merge-two-sorted-lists'],
+      ['Copy List with Random Pointer', 'Medium', 'copy-list-with-random-pointer'],
+      ['Reverse Linked List II', 'Medium', 'reverse-linked-list-ii'],
+      ['Reverse Nodes in k-Group', 'Hard', 'reverse-nodes-in-k-group'],
+      ['Remove Nth Node From End of List', 'Medium', 'remove-nth-node-from-end-of-list'],
+      ['Remove Duplicates from Sorted List II', 'Medium', 'remove-duplicates-from-sorted-list-ii'],
+      ['Rotate List', 'Medium', 'rotate-list'],
+      ['Partition List', 'Medium', 'partition-list'],
+      ['LRU Cache', 'Medium', 'lru-cache']
     ]
   },
   {
     title: 'Binary Tree General',
     problems: [
-      ['Maximum Depth of Binary Tree', 'Easy'],
-      ['Same Tree', 'Easy'],
-      ['Invert Binary Tree', 'Easy'],
-      ['Symmetric Tree', 'Easy'],
-      ['Construct Binary Tree from Preorder and Inorder Traversal', 'Medium'],
-      ['Construct Binary Tree from Inorder and Postorder Traversal', 'Medium'],
-      ['Populating Next Right Pointers in Each Node II', 'Medium'],
-      ['Flatten Binary Tree to Linked List', 'Medium'],
-      ['Path Sum', 'Easy'],
-      ['Sum Root to Leaf Numbers', 'Medium'],
-      ['Binary Tree Maximum Path Sum', 'Hard'],
-      ['Binary Search Tree Iterator', 'Medium'],
-      ['Count Complete Tree Nodes', 'Easy'],
-      ['Lowest Common Ancestor of a Binary Tree', 'Medium']
+      ['Maximum Depth of Binary Tree', 'Easy', 'maximum-depth-of-binary-tree'],
+      ['Same Tree', 'Easy', 'same-tree'],
+      ['Invert Binary Tree', 'Easy', 'invert-binary-tree'],
+      ['Symmetric Tree', 'Easy', 'symmetric-tree'],
+      ['Construct Binary Tree from Preorder and Inorder Traversal', 'Medium', 'construct-binary-tree-from-preorder-and-inorder-traversal'],
+      ['Construct Binary Tree from Inorder and Postorder Traversal', 'Medium', 'construct-binary-tree-from-inorder-and-postorder-traversal'],
+      ['Populating Next Right Pointers in Each Node II', 'Medium', 'populating-next-right-pointers-in-each-node-ii'],
+      ['Flatten Binary Tree to Linked List', 'Medium', 'flatten-binary-tree-to-linked-list'],
+      ['Path Sum', 'Easy', 'path-sum'],
+      ['Sum Root to Leaf Numbers', 'Medium', 'sum-root-to-leaf-numbers'],
+      ['Binary Tree Maximum Path Sum', 'Hard', 'binary-tree-maximum-path-sum'],
+      ['Binary Search Tree Iterator', 'Medium', 'binary-search-tree-iterator'],
+      ['Count Complete Tree Nodes', 'Easy', 'count-complete-tree-nodes'],
+      ['Lowest Common Ancestor of a Binary Tree', 'Medium', 'lowest-common-ancestor-of-a-binary-tree']
     ]
   },
   {
     title: 'Binary Tree BFS',
     problems: [
-      ['Binary Tree Right Side View', 'Medium'],
-      ['Average of Levels in Binary Tree', 'Easy'],
-      ['Binary Tree Level Order Traversal', 'Medium'],
-      ['Binary Tree Zigzag Level Order Traversal', 'Medium']
+      ['Binary Tree Right Side View', 'Medium', 'binary-tree-right-side-view'],
+      ['Average of Levels in Binary Tree', 'Easy', 'average-of-levels-in-binary-tree'],
+      ['Binary Tree Level Order Traversal', 'Medium', 'binary-tree-level-order-traversal'],
+      ['Binary Tree Zigzag Level Order Traversal', 'Medium', 'binary-tree-zigzag-level-order-traversal']
     ]
   },
   {
     title: 'Binary Search Tree',
     problems: [
-      ['Minimum Absolute Difference in BST', 'Easy'],
-      ['Kth Smallest Element in a BST', 'Medium'],
-      ['Validate Binary Search Tree', 'Medium']
+      ['Minimum Absolute Difference in BST', 'Easy', 'minimum-absolute-difference-in-bst'],
+      ['Kth Smallest Element in a BST', 'Medium', 'kth-smallest-element-in-a-bst'],
+      ['Validate Binary Search Tree', 'Medium', 'validate-binary-search-tree']
     ]
   },
   {
     title: 'Graph General',
     problems: [
-      ['Number of Islands', 'Medium'],
-      ['Surrounded Regions', 'Medium'],
-      ['Clone Graph', 'Medium'],
-      ['Evaluate Division', 'Medium'],
-      ['Course Schedule', 'Medium'],
-      ['Course Schedule II', 'Medium']
+      ['Number of Islands', 'Medium', 'number-of-islands'],
+      ['Surrounded Regions', 'Medium', 'surrounded-regions'],
+      ['Clone Graph', 'Medium', 'clone-graph'],
+      ['Evaluate Division', 'Medium', 'evaluate-division'],
+      ['Course Schedule', 'Medium', 'course-schedule'],
+      ['Course Schedule II', 'Medium', 'course-schedule-ii']
     ]
   },
   {
     title: 'Graph BFS',
     problems: [
-      ['Snakes and Ladders', 'Medium'],
-      ['Minimum Genetic Mutation', 'Medium'],
-      ['Word Ladder', 'Hard']
+      ['Snakes and Ladders', 'Medium', 'snakes-and-ladders'],
+      ['Minimum Genetic Mutation', 'Medium', 'minimum-genetic-mutation'],
+      ['Word Ladder', 'Hard', 'word-ladder']
     ]
   },
   {
     title: 'Trie',
     problems: [
-      ['Implement Trie (Prefix Tree)', 'Medium'],
-      ['Design Add and Search Words Data Structure', 'Medium'],
-      ['Word Search II', 'Hard']
+      ['Implement Trie (Prefix Tree)', 'Medium', 'implement-trie-prefix-tree'],
+      ['Design Add and Search Words Data Structure', 'Medium', 'design-add-and-search-words-data-structure'],
+      ['Word Search II', 'Hard', 'word-search-ii']
     ]
   },
   {
     title: 'Backtracking',
     problems: [
-      ['Letter Combinations of a Phone Number', 'Medium'],
-      ['Combinations', 'Medium'],
-      ['Permutations', 'Medium'],
-      ['Combination Sum', 'Medium'],
-      ['N-Queens II', 'Hard'],
-      ['Generate Parentheses', 'Medium'],
-      ['Word Search', 'Medium']
+      ['Letter Combinations of a Phone Number', 'Medium', 'letter-combinations-of-a-phone-number'],
+      ['Combinations', 'Medium', 'combinations'],
+      ['Permutations', 'Medium', 'permutations'],
+      ['Combination Sum', 'Medium', 'combination-sum'],
+      ['N-Queens II', 'Hard', 'n-queens-ii'],
+      ['Generate Parentheses', 'Medium', 'generate-parentheses'],
+      ['Word Search', 'Medium', 'word-search']
     ]
   },
   {
     title: 'Divide & Conquer',
     problems: [
-      ['Convert Sorted Array to Binary Search Tree', 'Easy'],
-      ['Sort List', 'Medium'],
-      ['Construct Quad Tree', 'Medium'],
-      ['Merge k Sorted Lists', 'Hard']
+      ['Convert Sorted Array to Binary Search Tree', 'Easy', 'convert-sorted-array-to-binary-search-tree'],
+      ['Sort List', 'Medium', 'sort-list'],
+      ['Construct Quad Tree', 'Medium', 'construct-quad-tree'],
+      ['Merge k Sorted Lists', 'Hard', 'merge-k-sorted-lists']
     ]
   },
   {
     title: "Kadane's Algorithm",
     problems: [
-      ['Maximum Subarray', 'Medium'],
-      ['Maximum Sum Circular Subarray', 'Medium']
+      ['Maximum Subarray', 'Medium', 'maximum-subarray'],
+      ['Maximum Sum Circular Subarray', 'Medium', 'maximum-sum-circular-subarray']
     ]
   },
   {
     title: 'Binary Search',
     problems: [
-      ['Search Insert Position', 'Easy'],
-      ['Search a 2D Matrix', 'Medium'],
-      ['Find Peak Element', 'Medium'],
-      ['Search in Rotated Sorted Array', 'Medium'],
-      ['Find First and Last Position of Element in Sorted Array', 'Medium'],
-      ['Find Minimum in Rotated Sorted Array', 'Medium'],
-      ['Median of Two Sorted Arrays', 'Hard']
+      ['Search Insert Position', 'Easy', 'search-insert-position'],
+      ['Search a 2D Matrix', 'Medium', 'search-a-2d-matrix'],
+      ['Find Peak Element', 'Medium', 'find-peak-element'],
+      ['Search in Rotated Sorted Array', 'Medium', 'search-in-rotated-sorted-array'],
+      ['Find First and Last Position of Element in Sorted Array', 'Medium', 'find-first-and-last-position-of-element-in-sorted-array'],
+      ['Find Minimum in Rotated Sorted Array', 'Medium', 'find-minimum-in-rotated-sorted-array'],
+      ['Median of Two Sorted Arrays', 'Hard', 'median-of-two-sorted-arrays']
     ]
   },
   {
     title: 'Heap',
     problems: [
-      ['Kth Largest Element in an Array', 'Medium'],
-      ['IPO', 'Hard'],
-      ['Find K Pairs with Smallest Sums', 'Medium'],
-      ['Find Median from Data Stream', 'Hard']
+      ['Kth Largest Element in an Array', 'Medium', 'kth-largest-element-in-an-array'],
+      ['IPO', 'Hard', 'ipo'],
+      ['Find K Pairs with Smallest Sums', 'Medium', 'find-k-pairs-with-smallest-sums'],
+      ['Find Median from Data Stream', 'Hard', 'find-median-from-data-stream']
     ]
   },
   {
     title: 'Bit Manipulation',
     problems: [
-      ['Add Binary', 'Easy'],
-      ['Reverse Bits', 'Easy'],
-      ['Number of 1 Bits', 'Easy'],
-      ['Single Number', 'Easy'],
-      ['Single Number II', 'Medium'],
-      ['Bitwise AND of Numbers Range', 'Medium']
+      ['Add Binary', 'Easy', 'add-binary'],
+      ['Reverse Bits', 'Easy', 'reverse-bits'],
+      ['Number of 1 Bits', 'Easy', 'number-of-1-bits'],
+      ['Single Number', 'Easy', 'single-number'],
+      ['Single Number II', 'Medium', 'single-number-ii'],
+      ['Bitwise AND of Numbers Range', 'Medium', 'bitwise-and-of-numbers-range']
     ]
   },
   {
     title: 'Math',
     problems: [
-      ['Palindrome Number', 'Easy'],
-      ['Plus One', 'Easy'],
-      ['Factorial Trailing Zeroes', 'Medium'],
-      ['Sqrt(x)', 'Easy'],
-      ['Pow(x, n)', 'Medium'],
-      ['Max Points on a Line', 'Hard']
+      ['Palindrome Number', 'Easy', 'palindrome-number'],
+      ['Plus One', 'Easy', 'plus-one'],
+      ['Factorial Trailing Zeroes', 'Medium', 'factorial-trailing-zeroes'],
+      ['Sqrt(x)', 'Easy', 'sqrtx'],
+      ['Pow(x, n)', 'Medium', 'powx-n'],
+      ['Max Points on a Line', 'Hard', 'max-points-on-a-line']
     ]
   },
   {
     title: '1D DP',
     problems: [
-      ['Climbing Stairs', 'Easy'],
-      ['House Robber', 'Medium'],
-      ['Word Break', 'Medium'],
-      ['Coin Change', 'Medium'],
-      ['Longest Increasing Subsequence', 'Medium']
+      ['Climbing Stairs', 'Easy', 'climbing-stairs'],
+      ['House Robber', 'Medium', 'house-robber'],
+      ['Word Break', 'Medium', 'word-break'],
+      ['Coin Change', 'Medium', 'coin-change'],
+      ['Longest Increasing Subsequence', 'Medium', 'longest-increasing-subsequence']
     ]
   },
   {
     title: 'Multidimensional DP',
     problems: [
-      ['Triangle', 'Medium'],
-      ['Minimum Path Sum', 'Medium'],
-      ['Unique Paths II', 'Medium'],
-      ['Longest Palindromic Substring', 'Medium'],
-      ['Interleaving String', 'Medium'],
-      ['Edit Distance', 'Medium'],
-      ['Best Time to Buy and Sell Stock III', 'Hard'],
-      ['Best Time to Buy and Sell Stock IV', 'Hard'],
-      ['Maximal Square', 'Medium']
+      ['Triangle', 'Medium', 'triangle'],
+      ['Minimum Path Sum', 'Medium', 'minimum-path-sum'],
+      ['Unique Paths II', 'Medium', 'unique-paths-ii'],
+      ['Longest Palindromic Substring', 'Medium', 'longest-palindromic-substring'],
+      ['Interleaving String', 'Medium', 'interleaving-string'],
+      ['Edit Distance', 'Medium', 'edit-distance'],
+      ['Best Time to Buy and Sell Stock III', 'Hard', 'best-time-to-buy-and-sell-stock-iii'],
+      ['Best Time to Buy and Sell Stock IV', 'Hard', 'best-time-to-buy-and-sell-stock-iv'],
+      ['Maximal Square', 'Medium', 'maximal-square']
     ]
   }
 ];
@@ -338,9 +338,9 @@ function TopInterview() {
   // Precompute global sequential numbering across all sections
   let counter = 1;
   const numberedSections = SECTIONS.map((section) => {
-    const problems = section.problems.map(([title, difficulty]) => {
+    const problems = section.problems.map(([title, difficulty, titleSlug]) => {
       const idx = counter++;
-      return { title, difficulty, idx };
+      return { title, difficulty, idx, titleSlug };
     });
     return { title: section.title, problems };
   });
@@ -348,7 +348,10 @@ function TopInterview() {
   // Compute solved counts and XP
   const allProblemsFlat = numberedSections.flatMap(s => s.problems);
   const totalCount = allProblemsFlat.length;
-  const solvedOnServerCount = allProblemsFlat.filter(p => serverSolved.has(slugify(p.title))).length;
+  const solvedOnServerCount = allProblemsFlat.filter(p => {
+    const slug = p.titleSlug || slugify(p.title);
+    return serverSolved.has(slug);
+  }).length;
   const solvedLocalCount = Object.keys(statusMap).filter(t => statusMap[t] === 'solved').length;
   const solvedCount = Math.max(solvedOnServerCount, solvedLocalCount);
 
@@ -359,7 +362,7 @@ function TopInterview() {
   };
 
   const xpFromSolved = allProblemsFlat.reduce((acc, p) => {
-    const slug = slugify(p.title);
+    const slug = p.titleSlug || slugify(p.title);
     const isSolved = serverSolved.has(slug) || statusMap[p.title] === 'solved';
     return acc + (isSolved ? xpForDifficulty(p.difficulty) : 0);
   }, 0);
@@ -395,9 +398,9 @@ function TopInterview() {
         <section key={section.title} className="mb-8">
           <h2 className="text-xl font-semibold mb-4">{section.title}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {section.problems.map(({ title, difficulty, idx }) => {
+            {section.problems.map(({ title, difficulty, idx, titleSlug }) => {
                         // Determine status: server-solved takes precedence, otherwise user toggles
-                        const slug = slugify(title);
+                        const slug = (titleSlug || slugify(title));
                         const isSolvedOnServer = serverSolved.has(slug);
                         const status = isSolvedOnServer ? 'solved' : (statusMap[title] || 'unsolved');
               return (
@@ -410,7 +413,7 @@ function TopInterview() {
                       <span className="inline-block w-7 font-mono text-primary-600">{idx}.</span>{' '}
                       {/** external LeetCode link opens in new tab (title clickable) */}
                       <a
-                        href={`https://leetcode.com/problems/${slugify(title)}/`}
+                        href={`https://leetcode.com/problems/${slug}/`}
                         target="_blank"
                         rel="noreferrer noopener"
                         className="hover:underline"
@@ -420,7 +423,7 @@ function TopInterview() {
                       </a>
                       {/** explicit external icon as well */}
                       <a
-                        href={`https://leetcode.com/problems/${slugify(title)}/`}
+                        href={`https://leetcode.com/problems/${slug}/`}
                         target="_blank"
                         rel="noreferrer noopener"
                         className="ml-2 text-xs text-blue-500 hover:underline"
