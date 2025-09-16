@@ -45,6 +45,12 @@ const Sidebar = ({ mobile = false, onNavigate }) => {
       description: 'Practice problems'
     },
     { 
+      name: 'Top Interview 150', 
+      href: '/problems/top-interview-150', 
+      icon: BookOpen,
+      description: 'Curated interview set via LeetCode API'
+    },
+    { 
       name: 'Leaderboard', 
       href: '/leaderboard', 
       icon: Trophy,

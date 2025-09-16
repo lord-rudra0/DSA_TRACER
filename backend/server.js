@@ -16,6 +16,7 @@ import competitionsRoutes from './routes/competitions.js';
 import adminRoutes from './routes/admin.js';
 import seasonRoutes from './routes/season.js';
 import xpRoutes from './routes/xp.js';
+import leetcodeRoutes from './routes/leetcode.js';
 import User from './models/User.js';
 
 dotenv.config();
@@ -68,6 +69,7 @@ app.use('/api/competitions', competitionsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/season', seasonRoutes);
 app.use('/api/xp', xpRoutes);
+app.use('/api/leetcode', leetcodeRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -25,6 +25,7 @@ import CompetitionsList from './pages/Competitions/CompetitionsList';
 import CreateCompetition from './pages/Competitions/CreateCompetition';
 import CompetitionDetail from './pages/Competitions/CompetitionDetail';
 import Admin from './pages/Admin/Admin';
+import TopInterview from './pages/Problems/TopInterview';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -59,6 +60,11 @@ function App() {
                   <Route path="problems" element={
                     <ProtectedRoute>
                       <Problems />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="problems/top-interview-150" element={
+                    <ProtectedRoute>
+                      <TopInterview />
                     </ProtectedRoute>
                   } />
                   <Route path="problems/:slug" element={
