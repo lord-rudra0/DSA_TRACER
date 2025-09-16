@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
+import FeedList from '../../components/Feed/FeedList';
 
 export default function Friends() {
   const { user } = useAuth();
@@ -11,6 +12,7 @@ export default function Friends() {
   const [requests, setRequests] = useState({ incoming: [], outgoing: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [composer, setComposer] = useState('');
 
   const debouncedQuery = useDebounce(query, 300);
 
@@ -77,6 +79,25 @@ export default function Friends() {
     <div className="p-6">
       <h1 className="text-2xl font-semibold">Friends</h1>
       <p className="text-gray-600 dark:text-gray-300 mt-2">Find and manage your friends.</p>
+
+      <section className="mt-6 p-4 bg-white dark:bg-gray-900 border rounded">
+        <textarea value={composer} onChange={(e) => setComposer(e.target.value)} placeholder="What's on your mind?" className="w-full p-2 bg-gray-50 dark:bg-gray-800" />
+        <div className="mt-2 text-right">
+          <button className="px-3 py-1 bg-indigo-600 text-white rounded" onClick={async () => {
+            try {
+              await axios.post('/feed', { type: 'text', text: composer });
+              setComposer('');
+            } catch (e) { /* ignore */ }
+          }}>Post</button>
+        </div>
+      </section>
+
+      <section className="mt-6">
+        <h2 className="text-lg font-medium">Friends Feed</h2>
+        <div className="mt-3">
+          <FeedList />
+        </div>
+      </section>
 
       {error && (
         <div className="mt-4 p-3 rounded bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300">

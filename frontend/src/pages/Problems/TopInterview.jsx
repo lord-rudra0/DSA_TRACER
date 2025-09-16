@@ -847,7 +847,22 @@ function TopInterview() {
                       >
                         {status === 'solved' ? 'Solved' : 'Unsolved'}
                       </button>
-                      <span className="text-xs text-gray-500">{difficulty}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">{difficulty}</span>
+                          <button
+                            title="Share this problem"
+                            className="px-2 py-1 text-xs rounded bg-gray-100 hover:bg-gray-200"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                await axios.post('/feed', { type: 'share_problem', text: `Solved ${title} on DSA Tracer`, meta: { titleSlug: titleSlug || slugify(title), title } });
+                                // optimistic refresh: no-op
+                              } catch (err) {
+                                // ignore
+                              }
+                            }}
+                          >Share</button>
+                        </div>
                     </div>
                   </div>
                 );
