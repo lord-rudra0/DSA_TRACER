@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { AuthProvider } from './contexts/AuthContext';
+import { BadgeProvider } from './contexts/BadgeContext.jsx';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Layout from './components/Layout/Layout';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
@@ -42,6 +43,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
+          <BadgeProvider>
           <Router>
             <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
               <Routes>
@@ -135,6 +137,7 @@ function App() {
               </Routes>
             </div>
           </Router>
+          </BadgeProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

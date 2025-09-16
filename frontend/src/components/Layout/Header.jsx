@@ -16,12 +16,14 @@ import { useQuery } from 'react-query';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useBadges } from '../../contexts/BadgeContext.jsx';
 import { Link } from 'react-router-dom';
 import Sidebar from './Sidebar';
 
 const Header = () => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { badges } = useBadges();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -207,6 +209,16 @@ const Header = () => {
 
               {/* User menu */}
               <div className="relative">
+                {/* Badges preview (show up to 3) */}
+                {badges && badges.length > 0 && (
+                  <div className="hidden sm:flex items-center gap-2 mr-3">
+                    {badges.slice(0,3).map((b, i) => (
+                      <div key={i} title={b.name || b.title} className="w-7 h-7 rounded-full bg-yellow-50 flex items-center justify-center text-sm">
+                        {b.icon || (b.name ? b.name.charAt(0) : '🏅')}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <button
                   className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                   onClick={() => setShowUserMenu(!showUserMenu)}
