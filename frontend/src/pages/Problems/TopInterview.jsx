@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext.jsx';
+import { Link } from 'react-router-dom';
 
 // Hard-coded Top Interview 150 list grouped by sections exactly in the order supplied by the user.
 // Each problem shows a "Solution" tag, a difficulty badge, and a Solved/Unsolved toggle.
@@ -344,6 +345,25 @@ function TopInterview() {
     return { title: section.title, problems };
   });
 
+  // Compute solved counts and XP
+  const allProblemsFlat = numberedSections.flatMap(s => s.problems);
+  const totalCount = allProblemsFlat.length;
+  const solvedOnServerCount = allProblemsFlat.filter(p => serverSolved.has(slugify(p.title))).length;
+  const solvedLocalCount = Object.keys(statusMap).filter(t => statusMap[t] === 'solved').length;
+  const solvedCount = Math.max(solvedOnServerCount, solvedLocalCount);
+
+  const xpForDifficulty = (d) => {
+    if (d === 'Easy') return 10;
+    if (d === 'Medium') return 20;
+    return 30;
+  };
+
+  const xpFromSolved = allProblemsFlat.reduce((acc, p) => {
+    const slug = slugify(p.title);
+    const isSolved = serverSolved.has(slug) || statusMap[p.title] === 'solved';
+    return acc + (isSolved ? xpForDifficulty(p.difficulty) : 0);
+  }, 0);
+
   const renderBadge = (difficulty) => {
     const base = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium';
     if (difficulty === 'Easy') return <span className={`${base} bg-green-50 text-green-700`}>Easy</span>;
@@ -353,7 +373,23 @@ function TopInterview() {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Top Interview 150 (Hard-coded)</h1>
+      <h1 className="text-2xl font-bold mb-4">Top Interview 150</h1>
+
+      <div className="mb-6 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center gap-6">
+        <div>
+          <div className="text-sm text-gray-500">Solved</div>
+          <div className="text-lg font-semibold">{solvedCount} / {totalCount}</div>
+        </div>
+        <div>
+          <div className="text-sm text-gray-500">XP (this list)</div>
+          <div className="text-lg font-semibold">+{xpFromSolved}</div>
+        </div>
+        <div>
+          <div className="text-sm text-gray-500">Your XP</div>
+          <div className="text-lg font-semibold">{user?.xp ?? '—'}</div>
+        </div>
+        <div className="ml-auto text-sm text-gray-400">Server-synced shown first</div>
+      </div>
 
       {numberedSections.map((section) => (
         <section key={section.title} className="mb-8">
@@ -371,7 +407,27 @@ function TopInterview() {
                 >
                   <div>
                     <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                      <span className="inline-block w-7 font-mono text-primary-600">{idx}.</span> {title}
+                      <span className="inline-block w-7 font-mono text-primary-600">{idx}.</span>{' '}
+                      {/** external LeetCode link opens in new tab (title clickable) */}
+                      <a
+                        href={`https://leetcode.com/problems/${slugify(title)}/`}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {title}
+                      </a>
+                      {/** explicit external icon as well */}
+                      <a
+                        href={`https://leetcode.com/problems/${slugify(title)}/`}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="ml-2 text-xs text-blue-500 hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        ↗
+                      </a>
                     </h3>
                     <div className="flex items-center gap-2">
                       <span className="inline-flex items-center px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-xs font-medium">Solution</span>
