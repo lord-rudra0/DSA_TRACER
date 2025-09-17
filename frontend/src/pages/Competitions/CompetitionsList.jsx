@@ -74,7 +74,17 @@ export default function CompetitionsList() {
     <div className="p-6 space-y-4 relative">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Competitions</h1>
-        <button className="btn btn-primary" onClick={onCreateClick}>Create</button>
+        <button
+          onClick={onCreateClick}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white shadow-md transition-transform transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          style={{ background: 'linear-gradient(90deg,#6366f1,#06b6d4)' }}
+          aria-label="Create a new competition"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+          <span>Create</span>
+        </button>
       </div>
       <div className="grid grid-cols-1 gap-4">
         <div className="card p-6 text-gray-500">No competitions list yet. Create one to get started.</div>
@@ -111,15 +121,22 @@ export default function CompetitionsList() {
 
                   <div className="mt-5 flex items-center gap-3">
                     <button
-                      className="btn btn-primary"
                       onClick={sendAdminRequest}
                       disabled={submitting || latestReq?.status === 'pending' || latestReq?.status === 'approved'}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white shadow-md transition-transform transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-60"
+                      style={{ background: 'linear-gradient(90deg,#6366f1,#06b6d4)' }}
+                      aria-label="Send admin request"
                     >
-                      {latestReq?.status === 'pending'
-                        ? 'Request Pending'
-                        : latestReq?.status === 'approved'
-                        ? 'Already Approved'
-                        : (submitting ? 'Sending…' : 'Send Admin Request')}
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                      </svg>
+                      <span>
+                        {latestReq?.status === 'pending'
+                          ? 'Request Pending'
+                          : latestReq?.status === 'approved'
+                          ? 'Already Approved'
+                          : (submitting ? 'Sending…' : 'Send Admin Request')}
+                      </span>
                     </button>
                     <button className="btn" onClick={() => setModalOpen(false)}>Cancel</button>
                   </div>

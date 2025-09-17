@@ -54,15 +54,43 @@ export default function CompetitionDetail() {
         </div>
         <div className="flex items-center gap-2">
           {isAdmin && (
-            <Link className="btn" to={`/competitions/${id}/edit`}>Edit</Link>
+            <Link
+              to={`/competitions/${id}/edit`}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white shadow-md transition-transform transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              style={{ background: 'linear-gradient(90deg,#6366f1,#06b6d4)' }}
+              aria-label="Edit competition"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5h6M5 11l6-6 7 7-6 6H5z" />
+              </svg>
+              <span>Edit</span>
+            </Link>
           )}
           {!isParticipant && (
-            <button className="btn btn-primary" onClick={() => joinMutation.mutate()} disabled={joinMutation.isLoading}>
-              {joinMutation.isLoading ? 'Joining…' : 'Join'}
+            <button
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white shadow-md transition-transform transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-60"
+              style={{ background: 'linear-gradient(90deg,#6366f1,#06b6d4)' }}
+              onClick={() => joinMutation.mutate()}
+              disabled={joinMutation.isLoading}
+              aria-label="Join competition"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              <span>{joinMutation.isLoading ? 'Joining…' : 'Join'}</span>
             </button>
           )}
-          <button className="btn" onClick={() => syncMutation.mutate()} disabled={syncMutation.isLoading}>
-            {syncMutation.isLoading ? 'Syncing…' : 'Sync'}
+          <button
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white shadow-md transition-transform transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-60"
+            style={{ background: 'linear-gradient(90deg,#6366f1,#06b6d4)' }}
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isLoading}
+            aria-label="Sync competition"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v6h6M20 20v-6h-6M20 8a8 8 0 11-8 8" />
+            </svg>
+            <span>{syncMutation.isLoading ? 'Syncing…' : 'Sync'}</span>
           </button>
         </div>
       </div>

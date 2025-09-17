@@ -622,150 +622,88 @@ function TopInterview() {
         </div>
       )}
 
-      <div className="mb-6 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center gap-6">
-        <div>
-          <div className="text-sm text-gray-500">Solved</div>
-          <div className="text-lg font-semibold">{solvedCount} / {totalCount}</div>
-        </div>
-        <div>
-          <div className="text-sm text-gray-500">XP (this list)</div>
-          <div className="text-lg font-semibold">+{xpFromSolved}</div>
-        </div>
-        <div>
-          <div className="text-sm text-gray-500">Your XP</div>
-          <div className="text-lg font-semibold">{user?.xp ?? '—'}</div>
-        </div>
-        <div className="ml-auto text-sm text-gray-400">Server-synced shown first</div>
-      </div>
-
-      {/* Overall progress bar */}
-      <div className="mb-4">
-        <div className="text-sm text-gray-500 mb-2">Overall Progress</div>
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
-          <div
-            className="h-3 bg-green-500"
-            style={{ width: `${Math.round((solvedCount / totalCount) * 100)}%` }}
+      {/* Compact single-row summary bar (minimized) */}
+      <div className="mb-4 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center gap-3 overflow-x-auto">
+        {/* Goal input */}
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-gray-500">Goal</div>
+          <input
+            type="number"
+            className="input input-bordered w-20 text-sm"
+            value={goal || ''}
+            onChange={(e) => setGoal(Number(e.target.value))}
+            placeholder="0"
           />
+          <button
+            className="px-2 py-1 bg-indigo-600 text-white text-sm rounded"
+            onClick={() => { try { localStorage.setItem(GOAL_KEY, String(goal || 0)); } catch {} }}
+          >Save</button>
         </div>
-        <div className="text-xs text-gray-500 mt-1">{Math.round((solvedCount / totalCount) * 100)}% completed</div>
-      </div>
 
-      <div className="mb-6 flex flex-wrap gap-4 items-center">
-        <input
-          type="text"
-          className="input input-bordered w-64"
-          placeholder="Search by title or slug..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-        <select
-          className="input input-bordered w-40"
-          value={difficultyFilter}
-          onChange={e => setDifficultyFilter(e.target.value)}
-        >
-          <option value="All">All Difficulties</option>
-          <option value="Easy">Easy</option>
-          <option value="Medium">Medium</option>
-          <option value="Hard">Hard</option>
-        </select>
-      </div>
-
-      {/* Goals & Leaderboard */}
-  <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-  <div className="p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded">
-          <div className="text-sm text-gray-500">Goal</div>
-          <div className="mt-2 flex items-center gap-2">
-            <input type="number" className="input input-bordered w-32" value={goal || ''} onChange={(e) => setGoal(Number(e.target.value))} placeholder="0" />
-            <button className="px-3 py-1 bg-indigo-600 text-white rounded" onClick={() => { localStorage.setItem(GOAL_KEY, String(goal || 0)); }}>Save</button>
+        {/* Progress mini */}
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-gray-500">Progress</div>
+          <div className="w-36 bg-gray-200 dark:bg-gray-700 h-2 rounded overflow-hidden">
+            <div
+              className="h-2 bg-green-500"
+              style={{ width: `${Math.min(100, Math.round((solvedCount / (goal || totalCount || 1)) * 100))}%` }}
+            />
           </div>
-          <div className="mt-3 text-sm text-gray-500">Progress: {Math.min(100, Math.round((solvedCount / (goal || totalCount || 1)) * 100))}%</div>
+          <div className="text-sm text-gray-700 dark:text-gray-300">{Math.min(100, Math.round((solvedCount / (goal || totalCount || 1)) * 100))}%</div>
         </div>
 
-        <div className="col-span-1">
-          <InsightsPanel />
+        {/* Solved / XP chips */}
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-gray-500">Solved</div>
+          <div className="text-sm font-semibold">{solvedCount}/{totalCount}</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-gray-500">XP (list)</div>
+          <div className="text-sm font-semibold">+{xpFromSolved}</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-gray-500">Your XP</div>
+          <div className="text-sm font-semibold">{user?.xp ?? '—'}</div>
         </div>
 
-        <div className="p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded col-span-1 md:col-span-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-gray-500">Challenge History</div>
-              <div className="text-xs text-gray-400">Recent attempts (local & server)</div>
-            </div>
-            <button className="text-xs text-blue-600" onClick={() => fetchChallengeHistory()}>Refresh</button>
-          </div>
-          <div className="mt-3 space-y-2">
-            {challengeHistory.length === 0 ? (
-              <div className="text-sm text-gray-500">No challenge history yet.</div>
-            ) : (
-              challengeHistory.slice(0,5).map((h, i) => (
-                <div key={h._id || i} className="flex items-center justify-between p-2 border rounded">
-                  <div className="text-sm">
-                    <div className="font-medium">{h.numProblems} problems • {h.success ? 'Success' : 'Incomplete'}</div>
-                    <div className="text-xs text-gray-500">{h.timeTakenSeconds}s / {h.timeLimitSeconds}s • {new Date(h.createdAt).toLocaleString()}</div>
-                  </div>
-                  <div className="text-sm font-medium text-indigo-600">+{h.xpAwarded || 0} XP</div>
-                </div>
-              ))
-            )}
-          </div>
+        {/* Small misc stats */}
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-gray-500">Streak</div>
+          <div className="text-sm">{user?.streak?.current || 0}</div>
         </div>
-      </div>
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-gray-500">Best</div>
+          <div className="text-sm">{user?.streak?.best || 0}</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-gray-500">Top Tag</div>
+          <div className="text-sm">—</div>
+        </div>
 
-      {/* Leaderboard */}
-      <div className="mb-6 p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded">
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-500">Challenge Leaderboard</div>
-          <button className="text-xs text-blue-600" onClick={() => fetchChallengeLeaderboard()}>Refresh</button>
+        {/* Challenge history / leaderboard small indicators */}
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-gray-500">History</div>
+          <div className="text-sm">{challengeHistory.length || '0'}</div>
         </div>
-        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {challengeLeaderboard.length === 0 ? (
-            <div className="text-sm text-gray-500">No leaderboard data yet.</div>
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-gray-500">Leaderboard</div>
+          <div className="text-sm">{challengeLeaderboard.length ? challengeLeaderboard[0]?.user?.leetcodeUsername || challengeLeaderboard[0]?._id : '—'}</div>
+        </div>
+
+        {/* Challenge Mode compact controls aligned to the right */}
+        <div className="ml-auto flex items-center gap-2">
+          {!challengeActive ? (
+            <>
+              <button className="px-2 py-1 bg-blue-600 text-white text-sm rounded" onClick={() => startChallenge(5, 600)}>5p</button>
+              <button className="px-2 py-1 bg-blue-600 text-white text-sm rounded" onClick={() => startChallenge(10, 900)}>10p</button>
+            </>
           ) : (
-            challengeLeaderboard.slice(0,6).map((r, idx) => (
-              <div key={idx} className="p-3 border rounded">
-                <div className="font-medium">{r.user?.leetcodeUsername || r.user?._id}</div>
-                <div className="text-xs text-gray-500">Completions: {r.completions} • Successes: {r.successes}</div>
-              </div>
-            ))
+            <>
+              <div className="text-sm">{Math.floor(challengeTimeLeft/60)}:{String(challengeTimeLeft%60).padStart(2,'0')}</div>
+              <button className="px-2 py-1 bg-red-600 text-white text-sm rounded" onClick={stopChallenge}>Stop</button>
+            </>
           )}
         </div>
-      </div>
-
-      {/* Challenge mode controls */}
-      <div className="mb-6 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
-        <div className="flex items-center gap-4">
-          <div>
-            <div className="text-sm text-gray-500">Challenge Mode</div>
-            <div className="text-xs text-gray-400">Quick timed practice</div>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            {!challengeActive ? (
-              <>
-                <button className="px-3 py-1 bg-blue-600 text-white rounded" onClick={() => startChallenge(5, 600)}>Start 5-problem (10m)</button>
-                <button className="px-3 py-1 bg-blue-600 text-white rounded" onClick={() => startChallenge(10, 900)}>Start 10-problem (15m)</button>
-              </>
-            ) : (
-              <>
-                <div className="text-sm">Time left: <span className="font-mono">{Math.floor(challengeTimeLeft/60)}:{String(challengeTimeLeft%60).padStart(2,'0')}</span></div>
-                <button className="px-3 py-1 bg-red-600 text-white rounded" onClick={stopChallenge}>Stop</button>
-              </>
-            )}
-          </div>
-        </div>
-        {challengeActive && challengeProblems.length > 0 && (
-          <div className="mt-4">
-            <div className="text-sm text-gray-600 mb-2">Problems in this challenge</div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-              {challengeProblems.map(p => (
-                <div key={p.title} className="p-2 border rounded bg-gray-50 dark:bg-gray-900">
-                  <div className="text-xs font-mono text-primary-600">{p.idx}.</div>
-                  <div className="text-sm font-medium">{p.title}</div>
-                  <div className="text-xs text-gray-500">{p.difficulty}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Notification / badge area */}
