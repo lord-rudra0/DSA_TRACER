@@ -67,7 +67,9 @@ export default function Profile() {
       try {
         setXpLoading(true);
         setXpError('');
-        const { data } = await axios.get(`/api/xp/logs`, { params: { page: xpPage, limit: xpLimit } });
+        // axios.defaults.baseURL already points to the API root (e.g. '/api'),
+        // so do not include a leading '/api' here or the request becomes '/api/api/...'
+        const { data } = await axios.get(`/xp/logs`, { params: { page: xpPage, limit: xpLimit } });
         if (canceled) return;
         setXpLogs(data.items || data.logs || []);
         // Accept either {pagination} or hasNext

@@ -7,6 +7,7 @@ import {
   Sun, 
   Moon, 
   Monitor,
+  Award,
   Settings,
   LogOut,
   User,

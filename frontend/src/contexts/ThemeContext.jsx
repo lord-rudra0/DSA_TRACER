@@ -12,16 +12,26 @@ export const useTheme = () => {
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
-    // Check localStorage first
+    // Migration: if we haven't run the theme migration yet, reset theme for all users
+    // to 'system'. This will overwrite any previously saved preference on first run
+    // after deployment.
+    try {
+      const migrated = localStorage.getItem('theme_migrated_v2');
+      if (!migrated) {
+        localStorage.setItem('theme', 'system');
+        localStorage.setItem('theme_migrated_v2', '1');
+        return 'system';
+      }
+    } catch (err) {
+      // ignore localStorage errors (e.g., in non-browser env)
+    }
+
+    // Prefer an explicit saved preference if present
     const saved = localStorage.getItem('theme');
     if (saved) return saved;
-    
-    // Check system preference
-    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
-    
-    return 'light';
+
+    // Default to system if no saved preference
+    return 'system';
   });
 
   useEffect(() => {
